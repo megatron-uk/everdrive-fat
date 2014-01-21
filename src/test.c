@@ -1,3 +1,16 @@
+/* =========================
+
+ Implements a basic test using
+ Turbo Everdrive FAT library.
+ 
+ Detects inserted card type,
+ Reads first detected FAT partition,
+ Displays FAT filesystem geometry.
+ 
+ John Snowdon (john@target-earth.net), 2014
+
+============================ */
+
 #include "huc.h"
 #include "fat.h"
 
