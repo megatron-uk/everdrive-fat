@@ -1,0 +1,21 @@
+Remember that all values are stored as little-endian with FAT and FAT devices. So all 16/32bit values need to be byteswapped in order to be used correctly on the PC-Engine/TG16.
+
+For a good reference, view: http://www.pjrc.com/tech/8051/ide/fat32.html
+
+Example partition record
+========================
+
+byte	1  | 2  3  4  | 5  | 6  7  8  | 9  10 11 12 | 13 14 15 16
+offset	00 | 01 02 03 | 04 | 05 06 07 | 08 09 0A 0B | 0C 0D 0E 0F
+data	00 | 20 21 00 | 0b | 6d 3d f0 | 00 08 00 00 | 00 e8 3a 00
+
+Example of the first few bytes of a FAT volume sector
+=====================================================
+
+byte	1  2  3  4  5  6  7  8  9  10 11 | 12 13 | 14 | 15 16 | 17 | 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
+offset	00 01 02 03 04 05 06 07 08 09 0A | 0B 0C | 0D | 0E 0F | 10 | 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F
+data	EB 00 90 20 20 20 20 20 20 20 20 | 00 02 | 40 | 34 11 | 02 | 00 00 00 00 F8 00 00 03 F0 0F F0 00 02 00 00
+	SWAP	FAT_BytsPerSec_os ------>|       |    |       |    |
+		FAT_SecPerClus_os -------------->|    |       |    |  
+	SWAP	FAT_RsvdSecCnt_os ------------------->|       |    |
+		FAT_NumFATs_os ------------------------------>|    |
