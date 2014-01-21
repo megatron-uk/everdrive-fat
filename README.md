@@ -1,8 +1,9 @@
 everdrive-fat
 =============
 
-FAT filesystem driver and stdio-like interface for the Turbo Everdrive flash card for the NEC PC-Engine and TurboGrafx 16 video game consoles.
+FAT filesystem driver and stdio-like interface for the Turbo Everdrive flash card (http://krikzz.com/) for the NEC PC-Engine and TurboGrafx 16 video game consoles.
 
+The FAT library is implemented in C (using the Small-C subset as provided by the HuC compiler), and leverages the low level Everdrive SD driver written by https://github.com/BlockoS. My work would not have been possible without that driver.
 
 Overview
 ========
@@ -29,6 +30,8 @@ Current Status
 ==============
 
 Code has been tested on both physical and emulated systems: a Turbo Express with Everdrive (along with SD and SDHC cards) as well as Mednafen (for general correctness and debugging).
+
+I currently use HuC/PCEAS v3.21.
 
 The fat library can currently do the following:
 
