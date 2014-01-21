@@ -2,9 +2,11 @@
  	FAT32 device, filesystem and file function support for
  	the Turbo Everdrive flash card.
  
- 	HuC functions below written by john.snowdon@newcastle.ac.uk , 2014
+ 	HuC functions below written by John Snowdon (john@target-earth.net), 2014
  	
- 	Requires sd.h and sd.asm functions developed by Mooz - Vincent.Cruz@gmail.com, 2012-2014
+ 	Uses sd.h and sd.asm functions developed by Mooz:
+ 		https://gist.github.com/BlockoS
+ 		(Vincent.Cruz@gmail.com, 2012-2014)
  
 ==================================== */
 
