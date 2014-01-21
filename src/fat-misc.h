@@ -5,7 +5,7 @@
 	Miscellaneous helper functions for FAT code
 	using the Turbo Everdrive flash card.
 
-	John Snowdon (John.Snowdon@newcastle.ac.uk), 2014
+	John Snowdon (john@target-earth.net), 2014
 
  =============================== */
 
