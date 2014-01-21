@@ -5,7 +5,7 @@
 	data from the volume sector of the currently
 	selected FAT partition.
 
-	John Snowdon (John.Snowdon@newcastle.ac.uk), 2014
+	John Snowdon (john@target-earth.net), 2014
 
  =============================== */
  
