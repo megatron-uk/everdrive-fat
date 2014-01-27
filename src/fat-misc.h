@@ -1,15 +1,32 @@
-/* ===============================
+/* 		
+* This file is part of everdrive-fat.
 
-	fat-misc.h
-	======
-	Miscellaneous helper functions for FAT code
-	using the Turbo Everdrive flash card.
+* everdrive-fat is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+* 
+* Foobar is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU Lesser General Public License for more details.
+* 
+* You should have received a copy of the GNU Lesser General Public License
+* along with everdrive-fat.  If not, see <http://www.gnu.org/licenses/>.
+* 
+*/
 
-	John Snowdon (john@target-earth.net), 2014
+/*
+* fat-misc.h
+* ======
+* Miscellaneous helper functions for FAT code
+* using the Turbo Everdrive flash card.
+* This is not normally needed in actual program code.
+* 
+* John Snowdon (john@target-earth.net), 2014
+*/
 
- =============================== */
-
- clearFATBuffers()
+clearFATBuffers()
 {
 	/* 
 		zero out all global memory each time we call
@@ -42,30 +59,6 @@
 	return 0;
 }
 
-put_hex_count(buffer, count, col, row)
-char*	buffer;
-char	count;
-char	col;
-char	row;
-{
-	/* 
-		print an arbitrary chunk of memory pointed to by a buffer
-		display it as hex at a given text coord on the screen.
-		
-		Input:
-			char*, buffer	- Pointer to location in memory.
-			char, count	- Number of bytes to display from that memory location.
-			char, col		- Start column (text mode).
-			char, row	- Start tow (text mode).
-	*/
-	
-	char hex_byte;
-	for (hex_byte=0; hex_byte<count; hex_byte++) {
-		put_hex(buffer[hex_byte], 2, col + (2 * hex_byte), row);
-	}
-	return 0;
-}
- 
 #ifdef FALSE_PART
 false_part()
 {
@@ -146,5 +139,14 @@ false_vol()
 	sector_buffer[36] = 0x66;
 	sector_buffer[37] = 0x07;
 	sector_buffer[38] = 0x00;
+	sector_buffer[39] = 0x00;
+	sector_buffer[40] = 0x00;
+	sector_buffer[41] = 0x00;
+	sector_buffer[42] = 0x00;
+	sector_buffer[43] = 0x00;
+	sector_buffer[44] = 0x02;
+	sector_buffer[45] = 0x00;
+	sector_buffer[46] = 0x00;
+	sector_buffer[47] = 0x00;
 }
 #endif

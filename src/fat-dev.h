@@ -1,14 +1,30 @@
-/* ===============================
+/* 		
+* This file is part of everdrive-fat.
 
-	fat-dev.h
-	======
-	Functions for detecting and selecting the current
-	active FAT master boot record and partition entry
-	for SD card attached to the Turbo Everdrive flash drive.
+* everdrive-fat is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+* 
+* Foobar is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU Lesser General Public License for more details.
+* 
+* You should have received a copy of the GNU Lesser General Public License
+* along with everdrive-fat.  If not, see <http://www.gnu.org/licenses/>.
+* 
+*/
 
-	John Snowdon (john@target-earth.net), 2014
-
- =============================== */
+/*
+* fat-dev.h
+* ======
+* Functions for detecting and selecting the current
+* active FAT master boot record and partition entry
+* for SD card attached to the Turbo Everdrive flash drive.
+* 
+* John Snowdon (john@target-earth.net), 2014
+*/
 
 getMBR(detect_part) 
 char detect_part;
@@ -26,7 +42,6 @@ char detect_part;
 	int	addr_low, addr_hi;
 	int 	byte_address;
 	char 	i, i_max, i_min;
-	char 	everdrive_error;
 	char	ptype;
 	char	first_part, first_part_type;
 	
@@ -41,7 +56,7 @@ char detect_part;
 	*/
 	clearFATBuffers();
 	
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	put_string("disk_read", 1, (INFO_LINE_START + 2));
 	put_hex(addr_hi, 4, 12, INFO_LINE_START + 2);
 	put_hex(addr_low, 4, 17, INFO_LINE_START + 2);
@@ -49,31 +64,31 @@ char detect_part;
 	everdrive_error = disk_read_single_sector(addr_low, addr_hi, sector_buffer);
 	if (everdrive_error != ERR_NONE) {
 		/* disk read error */
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_string("Error", 26, (INFO_LINE_START + 2));
 		put_number(everdrive_error, 3, 22, (INFO_LINE_START + 2));
 		#endif
 		/*return everdrive_error;*/
 	} else {
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_string("Ok", 26, (INFO_LINE_START + 2));
 		put_number(everdrive_error, 3, 22, (INFO_LINE_START + 2));
 		#endif
 	}
 	
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	put_string("isValidMBR", 1, (INFO_LINE_START + 3));
 	#endif
 	everdrive_error = isValidMBR(sector_buffer);
 	if (everdrive_error != ERR_NONE) {
 		/* missing MBR checksum error */
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_string("Error", 26, (INFO_LINE_START + 3));
 		put_number(everdrive_error, 3, 22, (INFO_LINE_START + 3));
 		#endif
 		/*return everdrive_error;*/
 	} else {
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_string("Ok", 26, (INFO_LINE_START + 3));
 		put_number(everdrive_error, 3, 22, (INFO_LINE_START + 3));
 		#endif
@@ -91,7 +106,7 @@ char detect_part;
 		/* calculate the byte address of the current partition entry 
 		in the sector buffer */ 
 		byte_address = MBR_Part_1_os + (i  * MBR_Part_sz);
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_string("part@",  1, i + INFO_LINE_START + 4);
 		put_hex(byte_address, 3, 6, i + INFO_LINE_START + 4);
 		/*put_hex_count(sector_buffer + byte_address, 16, 0, i + INFO_LINE_START + 11);*/
@@ -101,7 +116,7 @@ char detect_part;
 		
 		if (ptype != 0x00) {
 			/* write partition type and partition entry */
-			#ifdef DEBUG
+			#ifdef FATDEBUG
 			put_hex(ptype, 2, 23, i + INFO_LINE_START + 4);
 			put_string("FAT",  12, i + INFO_LINE_START + 4);
 			put_string("Ok",  26, i + INFO_LINE_START + 4);
@@ -121,7 +136,7 @@ char detect_part;
 				}
 			}
 		} else {
-			#ifdef DEBUG
+			#ifdef FATDEBUG
 			put_hex(ptype, 2, 23, i + INFO_LINE_START + 4);
 			put_string("Not FAT",  12, i + INFO_LINE_START + 4);
 			put_string("Error",  26, i + INFO_LINE_START + 4);
@@ -141,7 +156,7 @@ char detect_part;
 		} else {
 			lba_addressing = 0;	
 		}
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_string("byte_addr", 1, INFO_LINE_START + 8);
 		put_hex(byte_address, 3, 12, INFO_LINE_START + 8);		
 		put_string("part_type", 1, INFO_LINE_START + 9);
@@ -152,7 +167,7 @@ char detect_part;
 		#endif
 		return ERR_NONE;	
 	} else {
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_string("byte_addr", 1, INFO_LINE_START + 8);
 		put_string("N/A", 12, INFO_LINE_START + 8);
 		put_string("Error",  26, INFO_LINE_START + 8);
@@ -187,18 +202,6 @@ char* part_type_byte;
 		case TypeCode_FAT32_LBA:
 			return TypeCode_FAT32_LBA;
 			break;
-		
-		case TypeCode_FAT16_LBA:
-			return TypeCode_FAT16_LBA;
-			break;
-		
-		case TypeCode_FAT16:
-			return TypeCode_FAT16;
-			break;
-			
-		case TypeCode_FAT16_32MB:
-			return TypeCode_FAT16_32MB;
-			break;
 			
 		default:
 			return 0x00;
@@ -216,7 +219,7 @@ char* ed_buffer;
 		returns ERR_NONE on success, or error code on missing bytes 
 	*/
 	
-	if ((ed_buffer[MBR_CheckByte_1_os] == MBR_CheckByte_1) & (ed_buffer[MBR_CheckByte_2_os] == MBR_CheckByte_2)) {
+	if ((ed_buffer[MBR_CheckByte_1_os] == MBR_CheckByte_1) && (ed_buffer[MBR_CheckByte_2_os] == MBR_CheckByte_2)) {
 		return ERR_NONE;
 	}
 	return ERR_MISS_MBR_CKSUM;

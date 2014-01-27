@@ -1,13 +1,31 @@
-/* ===============================
+/* 		
+* This file is part of everdrive-fat.
 
-	fat-vol.h
-	Functions for reading FAT filesystem geometry 
-	data from the volume sector of the currently
-	selected FAT partition.
+* everdrive-fat is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+* 
+* Foobar is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU Lesser General Public License for more details.
+* 
+* You should have received a copy of the GNU Lesser General Public License
+* along with everdrive-fat.  If not, see <http://www.gnu.org/licenses/>.
+* 
+*/
 
-	John Snowdon (john@target-earth.net), 2014
-
- =============================== */
+/* 
+* fat-vol.h
+* =========
+* Functions for reading FAT filesystem geometry 
+* data from the volume sector of the currently
+* selected FAT partition.
+* 
+* John Snowdon (john@target-earth.net), 2014
+* 
+*/
  
 getFATVol()  
 {
@@ -33,7 +51,7 @@ getFATVol()
 	addr_low = int32_to_int16_lsb(part_lba_begin);
 	addr_hi = int32_to_int16_msb(part_lba_begin);
 	
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	if (lba_addressing) {
 		put_string("LBA", 26, INFO_LINE_START + 1);
 	} else {
@@ -43,7 +61,7 @@ getFATVol()
 	put_hex_count(part_lba_begin, 4, 12, INFO_LINE_START + 1);
 	#endif	
 	
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	put_string("disk_read", 1, INFO_LINE_START + 2);
 	put_hex(addr_hi, 4, 12, INFO_LINE_START + 2);
 	put_hex(addr_low, 4, 17, INFO_LINE_START + 2);
@@ -51,19 +69,16 @@ getFATVol()
 	everdrive_error = disk_read_single_sector(addr_low, addr_hi, sector_buffer);
 	if (everdrive_error != ERR_NONE) { 
 		/* disk read error */
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_string("Error", 26, INFO_LINE_START + 2);
 		put_number(everdrive_error, 3, 22, INFO_LINE_START + 2);
-		#endif
-		#ifdef FALSE_PART
-		false_vol();
 		#endif
 		return everdrive_error;
 	} else {
 		/* 
 			ed_buffer should now contain sector 0 - the volume sector
 		*/
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_string("Ok", 26, INFO_LINE_START + 2);
 		put_number(everdrive_error, 3, 22, INFO_LINE_START + 2);
 		put_string("First 32bytes of volume sector", 1, MAX_LINES - 4);
@@ -259,7 +274,7 @@ getFATFS()
 
 	char	error;
 	
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	if (lba_addressing) {
 		put_string("LBA", 26, INFO_LINE_START + 1);
 	} else {
@@ -273,18 +288,18 @@ getFATFS()
 	/* Get the bytes per sector of this FAT filesystem */
 	error = 0;
 	error = getFSSectorSize();
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	put_string("Sect Size", 1, INFO_LINE_START + 2);
 	#endif
 	if (error != ERR_NONE){
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 2);
 		put_number(fs_sector_size, 5, 15, INFO_LINE_START + 2);
 		put_string("Error", 26, INFO_LINE_START + 2);
 		#endif
 		return error;
 	} else {
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 2);
 		put_number(fs_sector_size, 5, 15, INFO_LINE_START + 2);
 		put_string("OK", 26, INFO_LINE_START + 2);
@@ -294,18 +309,18 @@ getFATFS()
 	/* Get the number of sectors per cluster of this FAT filesystem */
 	error = 0;
 	error = getFSSectorClusterSize();
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	put_string("Sects/Clus", 1, INFO_LINE_START + 3);
 	#endif
 	if (error != ERR_NONE){
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 3);
 		put_number(fs_sectors_per_cluster, 3, 17, INFO_LINE_START + 3);
 		put_string("Error", 26, INFO_LINE_START + 3);
 		#endif
 		return error;
 	} else {
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 3);
 		put_number(fs_sectors_per_cluster, 3, 17, INFO_LINE_START + 3);
 		put_string("OK", 26, INFO_LINE_START + 3);
@@ -315,19 +330,19 @@ getFATFS()
 	/* Get the number of sectors for each FAT for this partition */
 	error = 0;
 	error = getFSSectorsPerFAT(sector_buffer, fs_sectors_per_fat);
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	put_string("Sects/FAT", 1, INFO_LINE_START + 4);
 	put_string("h", 20, INFO_LINE_START + 4);
 	#endif
 	if (error != ERR_NONE){
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 4);
 		put_hex_count(fs_sectors_per_fat, 4, 12, INFO_LINE_START + 4);
 		put_string("Error", 26, INFO_LINE_START + 4);
 		#endif
 		return error;
 	} else {
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 4);
 		put_hex_count(fs_sectors_per_fat, 4, 12, INFO_LINE_START + 4);
 		put_string("OK", 26, INFO_LINE_START + 4);
@@ -338,18 +353,18 @@ getFATFS()
 	/* Get the number of reserved sectors after the FAT tables */
 	error = 0;
 	error = getFSReservedSectors();
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	put_string("Res Sects", 1, INFO_LINE_START + 5);
 	#endif
 	if (error != ERR_NONE){
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 5);
 		put_number(fs_reserved_sectors, 5, 15, INFO_LINE_START + 5);
 		put_string("Error", 26, INFO_LINE_START + 5);
 		#endif
 		return error;
 	} else {
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 5);
 		put_number(fs_reserved_sectors, 5, 15, INFO_LINE_START + 5);
 		put_string("OK", 26, INFO_LINE_START + 5);
@@ -359,18 +374,18 @@ getFATFS()
 	/* Get the number of FAT table for this volume (should ALWAYS be == 0x02) */
 	error = 0;
 	error = getFSFATCount(sector_buffer);
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	put_string("FAT Count", 1, INFO_LINE_START + 6);
 	#endif
 	if (error != ERR_NONE){
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 6);
 		put_number(fs_num_fats, 1, 19, INFO_LINE_START + 6);
 		put_string("Error", 26, INFO_LINE_START + 6);
 		#endif
 		return error;
 	} else {
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 6);
 		put_number(fs_num_fats, 1, 19, INFO_LINE_START + 6);
 		put_string("OK", 26, INFO_LINE_START + 6);
@@ -380,19 +395,19 @@ getFATFS()
 	/* Get the start sector of the FAT table */
 	error = 0;
 	error = getFSFATBegin();
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	put_string("FS Start", 1, INFO_LINE_START + 7);
 	put_string("h", 20, INFO_LINE_START + 7);
 	#endif
 	if (error != ERR_NONE){
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 7);
 		put_hex_count(fs_fat_lba_begin, 4, 12, INFO_LINE_START + 7);
 		put_string("Error", 26, INFO_LINE_START + 7);
 		#endif
 		return error;
 	} else {
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 7);
 		put_hex_count(fs_fat_lba_begin, 4, 12, INFO_LINE_START + 7);
 		put_string("OK", 26, INFO_LINE_START + 7);
@@ -402,19 +417,19 @@ getFATFS()
 	/* Get the start sector of the first data cluster for this partition */
 	error = 0;
 	error = getFSClusterBegin();
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	put_string("Clus Start", 1, INFO_LINE_START + 8);
 	put_string("h", 20, INFO_LINE_START + 8);
 	#endif
 	if (error != ERR_NONE){
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 8);
 		put_hex_count(fs_cluster_lba_begin, 4, 12, INFO_LINE_START + 8);
 		put_string("Error", 26, INFO_LINE_START + 8);
 		#endif
 		return error;
 	} else {
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, INFO_LINE_START + 8);
 		put_hex_count(fs_cluster_lba_begin, 4, 12, INFO_LINE_START + 8);
 		put_string("OK", 26, INFO_LINE_START + 8);
@@ -424,19 +439,19 @@ getFATFS()
 	/* Set the cluster number of the root directory */
 	error = 0;
 	error = getFSRootCluster(sector_buffer);
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	put_string("Root Clus", 1, (INFO_LINE_START + 9));
 	put_string("h", 20, INFO_LINE_START + 9);
 	#endif
 	if (error != ERR_NONE){
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, (INFO_LINE_START + 9));
 		put_hex_count(fs_root_dir_cluster, 4, 12, (INFO_LINE_START + 9));
 		put_string("Error", 26, (INFO_LINE_START + 9));
 		#endif
 		return error;
 	} else {
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, (INFO_LINE_START + 9));
 		put_hex_count(fs_root_dir_cluster, 4, 12, (INFO_LINE_START + 9));
 		put_string("OK", 26, (INFO_LINE_START + 9));
@@ -446,24 +461,22 @@ getFATFS()
 	/* Finally check if the FAT32 filesystem signature is present */
 	error = 0;
 	error = getFATSignature(sector_buffer);
-	#ifdef DEBUG
+	#ifdef FATDEBUG
 	put_string("FAT Sig", 1, (INFO_LINE_START + 10));
 	#endif
 	if (error != ERR_NONE){
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, (INFO_LINE_START + 10));
 		put_hex_count(fs_fat_sig, 2, 16, (INFO_LINE_START + 10));
 		put_string("Error", 26, (INFO_LINE_START + 10));
 		#endif
 		return error;
 	} else {
-		#ifdef DEBUG
+		#ifdef FATDEBUG
 		put_number(error, 3, 22, (INFO_LINE_START + 10));
 		put_hex_count(fs_fat_sig, 2, 16, (INFO_LINE_START + 10));
 		put_string("OK", 26, (INFO_LINE_START + 10));
 		#endif
 	}
-	
-	
 	return ERR_NONE;	
 }

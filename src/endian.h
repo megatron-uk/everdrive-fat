@@ -1,12 +1,30 @@
-/* ========================================
+/* 		
+* This file is part of everdrive-fat.
 
-	Flip endian-ness of various data types ...
-	(such as addresses loaded from FAT filesystems -
-	Intel x86 uses little-endian)
+* everdrive-fat is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+* 
+* Foobar is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU Lesser General Public License for more details.
+* 
+* You should have received a copy of the GNU Lesser General Public License
+* along with everdrive-fat.  If not, see <http://www.gnu.org/licenses/>.
+* 
+*/
 
-	Written by John Snowdon (john@target-earth.net), 2014.
-	
-========================================= */
+/*
+* endian.h
+* ========
+* Flip endian-ness of various data types ...
+* (such as addresses loaded from FAT filesystems -
+* Intel x86 uses little-endian, MOS6502 is big-endian)
+* 
+* Written by John Snowdon (john@target-earth.net), 2014.
+*/
 
 swap_int16(int16)
 char*	int16;

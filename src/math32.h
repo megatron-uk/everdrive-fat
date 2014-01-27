@@ -1,38 +1,47 @@
-/* =============================================
+/* 		
+* This file is part of everdrive-fat.
 
-	Basic 32bit math functions, as well as helper functions to cast 
-	single byte 'char' and double byte 'int' numbers into 4 byte packed
-	arrays representing 32bit numbers.
-	
-	This is not speed tested. Consider it SLOW.
-	
-	Written by John Snowdon (john@target-earth.net), 2014.
-	
-	---
-	
-	int32_to_int16_lsb	- returns the 16 least significant bits of a 32bit number
-	int32_to_int16_msb	- returns the 16 most significant bits of a 32bit number
-	char_to_int32() 	- Converts an unsigned single byte char to a 4byte 32bit number
-	int_to_int32() 		- Converts an unsigned two byte int to a 4byte 32bit number
-	int32_is_zero() 	- Tests if a 4byte 32bit number is zero
-	add_int32() 		- Adds two 4byte 32bit numbers - does not handle overflow
-	sub_int32() 		- Subtracts two 4byte 32bit numbers
-	mul_int32() 		- NOT IMPLEMENTED!!! Multiplies two 4byte 32bit numbers - does not handle overflow
-	mul_int32_int16()	- SLOW!!! Multiplies a 4byte 32bit number by a 16bit integer - does not handle overflow - needs refactoring
-	mul_int32_int8()	- SLOW!!! Multiplies a 4byte 32bit number by a 8bit integer - does not handle overflow - needs refactoring
-	zero_int32()		- Initialises a 4byte packed 32bit number (sets each memory location to 0x00)
+* everdrive-fat is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+* 
+* Foobar is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU Lesser General Public License for more details.
+* 
+* You should have received a copy of the GNU Lesser General Public License
+* along with everdrive-fat.  If not, see <http://www.gnu.org/licenses/>.
+* 
+*/
 
-	---
-	
-	Helper methods from: http://web.media.mit.edu/~stefanm/yano/picc_Math32.html
-	
-	dec_int32() 		- Decrement a 32bit value by 1
-	lt_int32() 		- Is a < b
-	lte_int32() 		- Is a <= b
-	ge_int32() 		- Is a > b
-	gte_int32() 		- Is a >= b
-	
-=============================================== */
+/*
+* math32.h
+* ========
+* 
+* Basic 32bit math functions, as well as helper functions to cast 
+* single byte 'char' and double byte 'int' numbers into 4 byte packed
+* arrays representing 32bit numbers.
+* 
+* This is not speed tested. Consider it SLOW.
+* 
+* Written by John Snowdon (john@target-earth.net), 2014.
+* 
+* int32_to_int16_lsb	- returns the 16 least significant bits of a 32bit number
+* int32_to_int16_msb	- returns the 16 most significant bits of a 32bit number
+* char_to_int32() 	- Converts an unsigned single byte char to a 4byte 32bit number
+* int_to_int32() 	- Converts an unsigned two byte int to a 4byte 32bit number
+* int32_is_zero() 	- Tests if a 4byte 32bit number is zero
+* add_int32() 		- Adds two 4byte 32bit numbers - does not handle overflow
+* sub_int32() 		- Subtracts two 4byte 32bit numbers
+* mul_int32() 		- NOT IMPLEMENTED!!! Multiplies two 4byte 32bit numbers - does not handle overflow
+* mul_int32_int16()	- SLOW!!! Multiplies a 4byte 32bit number by a 16bit integer - does not handle overflow - needs refactoring
+* mul_int32_int8()	- SLOW!!! Multiplies a 4byte 32bit number by a 8bit integer - does not handle overflow - needs refactoring
+* zero_int32()		- Initialises a 4byte packed 32bit number (sets each memory location to 0x00)
+*/
+
+#include "math32-extras.h"
 
 int32_to_int16_lsb(int32)
 char*	int32;
@@ -198,7 +207,7 @@ int	int16;
 	memcpy(r, int32_result, 4);
 	zero_int32(int32_result);
 
-	for (mul_i = 0x0000; mul_i < int16; mul_i++) {
+	for (mul_i = 0; mul_i < int16; mul_i++) {
 		overflow = add_int32(int32_result, int32_result, r);
 		if (overflow != 0){
 			return overflow;
@@ -226,8 +235,8 @@ char	int8;
 	memcpy(r, int32, 4);
 	zero_int32(int32_result);
 
-	for (mul_i = 0x00; mul_i < int8; mul_i++) {
-		overflow = add_int32(int32_result, int32, r);
+	for (mul_i = 0; mul_i < int8; mul_i++) {
+		overflow = add_int32(int32_result, int32_result, r);
 		if (overflow != 0) {
 			return 1;
 		}
@@ -248,113 +257,33 @@ char*	int32_result;
 	return 0;
 }
 
-/* ====================================== 
-
-	These additional helpers below come from:
-	http://web.media.mit.edu/~stefanm/yano/picc_Math32.html
-
-	////////////////////////////////////////////////////////////////////////////
-	//                                                                        
-	// This code is based on code by Vadim Gerasimov (vadim@media.mit.edu),   
-	// and extended skillfully by Mark Newman (newman@media.mit.edu) for the  
-	// Robotic F.A.C.E. project                                               
-	//                                                                        
-	// Copyright (C) 2001-2004 MIT Media Laboratory                           
-	//                                                                        
-	////////////////////////////////////////////////////////////////////////////
+copy_int32(int32_result, int32)
+char*	int32_result;
+char*	int32;
+{
+	/* Copies a 32bit number */
 	
-*/
-
-dec_int32(int32_result)
-char*	int32_result;
-{
-	/* Decrement (in-place) a 32bit number */
-	if (int32_result[0]--==0) if(int32_result[1]--==0) if (int32_result[2]--==0) --int32_result[3];
-}
-
-inc_int32(int32_result)
-char*	int32_result;
-{
-	/* Increment (in-place) a 32bit number */
-	if (int32_result[3]++==0) if(int32_result[2]++==0) if (int32_result[1]++==0) ++int32_result[0];
-}
-
-lt_int32(int32_a, int32_b)
-char*	int32_a;
-char*	int32_b;
-{
-	/* Boolean - Less Than (a < b) */
-	int i;
-	for (i = 3; i >= 0; i--) {
-		if (int32_a[i] > int32_b[i])
-			return 0;
-		if (int32_a[i] < int32_b[i])
-			return 1;
-	}
+	memcpy(int32_result, int32, 4);
 	return 0;
 }
 
-lte_int32(int32_a, int32_b)
-char*	int32_a;
-char*	int32_b;
+isBitSet(c, n)
+char	c;
+char	n;
 {
-	/* Boolean - Less Than or Equal To (a <= b) */
-	int i;
-	for (i = 3; i >= 0; i--) {
-		if (int32_a[i] < int32_b[i]) {
-			return 1;
-		}
-		if (int32_a[i] > int32_b[i]) {
-			return 0;
-		}
-	}
-	return 1;
-}
-
-gt_int32(int32_a, int32_b)
-char*	int32_a;
-char*	int32_b;
-{
-	/* Boolean - Greater Than (a > b) */
-	int i;
-	for (i = 3; i >= 0; i--) {
-		if (int32_a[i] < int32_b[i]) {
-			return 0;
-		}
-		if (int32_a[i] > int32_b[i]) {
-			return 1;
-		}
-	}
-	return 0;
-}
-
-gte_int32(int32_a, int32_b)
-char*	int32_a;
-char*	int32_b;
-{
-	/* Boolean - Greater Than or Equal To (a >= b) */
-	int i;
-	for (i = 3; i >= 0; i--) {
-		if (int32_a[i] > int32_b[i]) {
-			return 1;
-		}
-		if (int32_a[i] < int32_b[i]) {
-			return 0;
-		}
-	}
-	return 1;
-}
-
-shift_int32(int32_result)
-char*	int32_result;
-{
-	/* Bitshifts a 32bit number */
+	/* 
+		Not a 32bit math operation, but simple bit test -
+		is a bit as pos n set in char c.
+	*/
+	char mask[];
+	mask[0] = 128;
+	mask[1] = 64;
+	mask[2] = 32;
+	mask[3] = 16;
+	mask[4] = 8;
+	mask[5] = 4;
+	mask[6] = 2;
+	mask[7] = 1;
 	
-	char i, in, out;
-	in = 0;
-	for (i = 0; i < 4; i++) {
-		out = int32_result[i] >> 7;
-		int32_result[i] = in + (int32_result[i] << 1);
-		in = out;
-	}
+	return ((c & mask[n]) != 0);
 }
