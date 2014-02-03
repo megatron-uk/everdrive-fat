@@ -180,21 +180,21 @@
 */
 
 /* read buffer */
-char	sector_buffer_current_fptr;	/* Which open fptr has data in the sector_buffer (as the buffer may need to be flushed when multiple files are open). */
+char	sector_buffer_current_fptr;		/* Which open fptr has data in the sector_buffer (as the buffer may need to be flushed when multiple files are open). */
 char 	sector_buffer[SECTOR_SIZE];	/* Memory to read each sector in from the Turbo Everdrive SD card. */
-char	everdrive_error;		/* Hold error codes from low level everdrive routines. */
+char	everdrive_error;			/* Hold error codes from low level everdrive routines. */
 char	lba_addressing;			/* Flag to indicate whether LBA addressing (SDHC) or byte addressing (SD) is active. */
 
 /* partition entry for the selected/detected partition */
 char	part_entry[16];			/* Holds the partition entry from the master boot record for the current selected partition. */
 char 	part_type;			/* The hex code for the partition type of the current selected partition - only FAT32 are allowed */
 char 	part_number;			/* The partition number (1-4) of the current selected partition. */
-char	part_lba_begin[4];		/* The starting LBA address pf the current selected partition. */
+char	part_lba_begin[4];			/* The starting LBA address pf the current selected partition. */
 
 /* the volume entry for the selected partition */
 char	fs_fat_lba_begin[4];		/* The starting LBA address of the FAT table for the current filesystem. */
 char	fs_fat_sig[2];			/* The detected 0xAA55 byte signature of the current filesystem. */
-char	fs_cluster_lba_begin[4];	/* Where the first data cluster is of the current filesystem. */
+char	fs_cluster_lba_begin[4];		/* Where the first data cluster is of the current filesystem. */
 char	fs_num_fats;			/* The number of FAT tables for the current filesystem (should always be 2). */
 int	fs_reserved_sectors;		/* The number of reserved sectors after the FAT tables and before the data clusters. */
 int	fs_sector_size;			/* The size of a single sector in this filesystem, in bytes. */
@@ -205,8 +205,8 @@ char	fs_root_dir_cluster[4];		/* Location of the first cluster of the root direc
 /* Total global work size == 545 bytes */
 
 /* status types for closed/available and  open/used file pointers */
-#define	FPTR_OPEN_STATUS		0xFF	/* value set in the file pointer array when a fptr is open/in-use */
-#define	FPTR_CLOSE_STATUS		0x00	/* value set in the file pointer array when a fptr is closed/free */
+#define FPTR_OPEN_STATUS		0xFF	/* value set in the file pointer array when a fptr is open/in-use */
+#define FPTR_CLOSE_STATUS		0x00	/* value set in the file pointer array when a fptr is closed/free */
 #define FILE_TYPE_FILE			0x1	/* constant for find_directory_entry when looking for file entry */
 #define FILE_TYPE_DIR			0x2	/* constant for find_directory_entry when looking for dir entry */
 #define MAX_FILENAME_SIZE		12	/* old DOS 8+3 format (including '.' seperator */
@@ -221,18 +221,18 @@ char	fs_root_dir_cluster[4];		/* Location of the first cluster of the root direc
 */
 
 /* directory entry structure */
-#define	DIR_Name_os			0x00	/* In a directory entry, DIR_Name is at byte 0 */
-#define	DIR_Name_sz			11	/* Old DOS 8+3 naming convention. eg MYSAVES__.TXT */
-#define	DIR_Name_Ext_os			0x08	/* Just the extension of the file. eg TXT */	
-#define	DIR_Name_Ext_sz			3
-#define	DIR_Attr_os			0x0B	/* Attrib byte - file status flags. */
-#define	DIR_Attr_sz			1
-#define	DIR_FstClusHI_os 		0x14	/* High 16bits of the starting data cluster for this file. */
-#define	DIR_FstClusHI_sz 		2
-#define	DIR_FstClusLO_os 		0x1A	/* Low 16bits of the starting data cluster for this file. */
-#define	DIR_FstClusLO_sz 		2
-#define	DIR_FileSize_os 		0x1C
-#define DIR_FileSize_sz 		4	/* Size of the file in bytes. */
+#define DIR_Name_os			0x00	/* In a directory entry, DIR_Name is at byte 0 */
+#define DIR_Name_sz			11	/* Old DOS 8+3 naming convention. eg MYSAVES__.TXT */
+#define DIR_Name_Ext_os			0x08	/* Just the extension of the file. eg TXT */	
+#define DIR_Name_Ext_sz			3
+#define DIR_Attr_os			0x0B	/* Attrib byte - file status flags. */
+#define DIR_Attr_sz			1
+#define DIR_FstClusHI_os 			0x14	/* High 16bits of the starting data cluster for this file. */
+#define DIR_FstClusHI_sz 			2
+#define DIR_FstClusLO_os 			0x1A	/* Low 16bits of the starting data cluster for this file. */
+#define DIR_FstClusLO_sz 			2
+#define DIR_FileSize_os 			0x1C
+#define DIR_FileSize_sz 			4	/* Size of the file in bytes. */
 
 /* ============================================================= */
 
@@ -244,28 +244,36 @@ char	fs_root_dir_cluster[4];		/* Location of the first cluster of the root direc
 */
 
 /* metadata held for each open file */
-#define	FILE_DIR_os	 		0x00	/* 32 bytes to hold the directory entry of the file (which includes start cluster), as described above. */
-#define	FILE_DIR_sz			32
+#define FILE_DIR_os	 		0x00	/* 32 bytes to hold the directory entry of the file (which includes start cluster), as described above. */
+#define FILE_DIR_sz			32
 #define FILE_Total_Clusters_os	 	0x20 	/* 2 bytes to hold the total number of clusters the file occupies (eg 10). */
 #define FILE_Total_Clusters_sz		2
-#define FILE_Cur_Cluster_Count_os 	0x22 	/* 2 bytes to hold the count of the current cluster we're reading (eg 2 of 10). */
-#define FILE_Cur_Cluster_Count_sz	2
-#define FILE_Cur_Cluster_os 		0x24 	/* 4 bytes to hold the actual number of the cluster we're reading (eg 345678). */
+/*
+#define FILE_Total_Sectors_os	 	2 bytes to hold the total number of sectors the cluster contains.
+#define FILE_Total_Sectors_sz		This is not needed as it is available from fs_sectors_per_cluster.
+*/
+#define FILE_Cur_Cluster_Count_os 		0x22 	/* 2 bytes to hold the count of the current cluster we're reading (eg 2 of 10). */
+#define FILE_Cur_Cluster_Count_sz		2
+#define FILE_Cur_Cluster_os 		0x24 	/* 4 bytes to hold the actual number of the cluster we're reading (eg 0x00000003). */
 #define FILE_Cur_Cluster_sz		4
-#define FILE_Cur_PosInFile_os 		0x28	/* 4 bytes to hold the current position in the overall file (eg 127860 of 10245560 bytes) */
+#define FILE_Cur_Sector_Count_os 		0x28	/* 2 bytes to hold the count of the current sector in this cluster (eg 4 of 64). */
+#define FILE_Cur_Sector_Count_sz 		2
+#define FILE_Cur_Sector_LBA_os 		0x2A 	/* 4 bytes to hold the actual LBA of the sector we're reading (eg 0x00004040). */
+#define FILE_Cur_Sector_LBA_sz		4
+#define FILE_Cur_PosInFile_os 		0x2E	/* 4 bytes to hold the current position in the overall file (eg 127860 of 10245560 bytes) */
 #define FILE_Cur_PosInFile_sz		4
-#define FILE_Cur_PosInBuffer_os		0x2C	/* 2 bytes to hold the current position in the current read buffer (eg 64 of 512 bytes) */
+#define FILE_Cur_PosInBuffer_os		0x32	/* 2 bytes to hold the current position in the current read buffer (eg 64 of 512 bytes) */
 #define FILE_Cur_PosInBuffer_sz		2
 
 /* ============================================================ */
 
-#define	FILE_WORK_SIZE			46	/* 46 bytes total work ram required per file */
+#define FILE_WORK_SIZE			52	/* 50 bytes total work ram required per file */
 #define NUM_OPEN_FILES			2 	/* Set the number of simultaneous open files here and multiply the FILE_WORK_SIZE figure 
 						to get the total bytes required for the global fwa. A minimum
 						of 2 open files are required - 1 is reserved for directory traversal leaving 1 for user files. */
 										
 char	file_handles[NUM_OPEN_FILES];		/* stores flags to indicate which files are open - file '0' is reserved for directory access. */
-char	fwa[92];				/* metadata for all possible open files -
+char	fwa[104];				/* metadata for all possible open files -
 						calculated as FILE_WORK_SIZE x NUM_OPEN_FILES
 						maximum allowed size is 32768 bytes */
 

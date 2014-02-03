@@ -146,7 +146,7 @@ getFSFATBegin()
 	char	tmp1[4];
 	
 	zero_int32(tmp1);
-	int_to_int32(tmp1, fs_reserved_sectors);
+	int16_to_int32(tmp1, fs_reserved_sectors);
 	add_int32(fs_fat_lba_begin, part_lba_begin, tmp1);
 	
 	return ERR_NONE;

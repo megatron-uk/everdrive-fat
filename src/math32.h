@@ -30,14 +30,15 @@
 * 
 * int32_to_int16_lsb	- returns the 16 least significant bits of a 32bit number
 * int32_to_int16_msb	- returns the 16 most significant bits of a 32bit number
-* char_to_int32() 	- Converts an unsigned single byte char to a 4byte 32bit number
-* int_to_int32() 	- Converts an unsigned two byte int to a 4byte 32bit number
-* int32_is_zero() 	- Tests if a 4byte 32bit number is zero
+* int8_to_int32() 		- Converts an unsigned single byte char to a 4byte 32bit number
+* int16_to_int32() 		- Converts an unsigned two byte int to a 4byte 32bit number
+* int32_is_zero() 		- Tests if a 4byte 32bit number is zero
 * add_int32() 		- Adds two 4byte 32bit numbers - does not handle overflow
-* sub_int32() 		- Subtracts two 4byte 32bit numbers
-* mul_int32() 		- NOT IMPLEMENTED!!! Multiplies two 4byte 32bit numbers - does not handle overflow
+* sub_int32() 		- NOT IMPLEMENTED!!!
+* mul_int32() 		- NOT IMPLEMENTED!!!
 * mul_int32_int16()	- SLOW!!! Multiplies a 4byte 32bit number by a 16bit integer - does not handle overflow - needs refactoring
-* mul_int32_int8()	- SLOW!!! Multiplies a 4byte 32bit number by a 8bit integer - does not handle overflow - needs refactoring
+* mul_int32_int8()		- Multiplies a 4byte 32bit number by a 8bit integer - does not handle overflow - needs refactoring
+* div_pow_int32()		- Divides a 32bit number by a given power of 2. Uses bit shifting.
 * zero_int32()		- Initialises a 4byte packed 32bit number (sets each memory location to 0x00)
 */
 
@@ -59,39 +60,34 @@ char*	int32;
 	return (int32[0] << 8) + int32[1];
 }
 
-char_to_int32(int32_result, int8)
+int8_to_int32(int32_result, int8)
 char* 	int32_result;
 char 	int8;
 {
 	/* 
 		Takes an unsigned 8bit number
-		and converts to a packed 4 byte array
+		and converts to the lowest byte of a packed 4 byte array
 	*/
 	
 	int32_result[0] = 0x00;
 	int32_result[1] = 0x00;
 	int32_result[2] = 0x00;
 	int32_result[3] = int8;
-	return 0;
 }
 
-int_to_int32(int32_result, int16)
+int16_to_int32(int32_result, int16)
 char* 	int32_result;
 int	int16;
 {
 	/* 
-		Takes a pointer to an unsigned 16bit number
-		and converts to a packed 4 byte array
-		
-		TODO: CONVERT TO SHIFT
+		Takes an unsigned 16bit number
+		and converts to the lower two bytes of a packed 4 byte array
 	*/
 	
 	int32_result[0] = 0x00;
 	int32_result[1] = 0x00;
 	int32_result[2] = int16 >> 8;
 	int32_result[3] = int16 & 0xff;
-	
-	return 0;
 }
 
 
@@ -106,7 +102,6 @@ char* 	int32;
 	if (int32[0] == 0x00) if (int32[1] == 0x00) if (int32[2] == 0x00) if (int32[3] == 0x00) return 1;
 	
 	return 0;
-	
 }
 
 mul_int32(int32_result, int32_a, int32_b)
@@ -221,28 +216,73 @@ char*	int32_result;
 char*	int32;
 char	int8;
 {
-	/* 
-		Multiply a 32bit number by an 8bit number - 
-		This is VERY SLOW (but works) - multiple add_int32 calls, it
-		should be refactored to use bit shifting.
+	
+	/*
+		Multiply a 32bit number by an 8bit number.
+		Result is a 32bit number and returns 0 or 1 to
+		indicate whether overflow occurred.
 		
-		TODO: CONVERT TO SHIFT
+		Input:
+			char*	int32_result	- Pointer to 32bit location in memory to hold result.
+			char*	int32		- Pointer to 32bit number to be multiplied.
+			char	int8		- 8 bit number to multiply.
+			
+		Resturns:
+			0 on success / no overflow and sets int32_result.
+			1 on overflow occured.
+			
 	*/
 	
-	char overflow;
-	char mul_i;
-	char r[4];
-	memcpy(r, int32, 4);
-	zero_int32(int32_result);
-
-	for (mul_i = 0; mul_i < int8; mul_i++) {
-		overflow = add_int32(int32_result, int32_result, r);
-		if (overflow != 0) {
-			return 1;
-		}
-	}
-	return 0;
+	char i;
+	char v;
+	int old_v;
 	
+	v = 0;
+	for (i = 3; i > 0; --i){
+		
+		/* multiply and add overflow from last loop*/
+		old_v = (int32[i] * int8) + v;
+		
+		/* store lsb */
+		int32_result[i] = old_v & 0xff;
+		
+		/* store msb as overflow for next loop */
+		v = (old_v >> 8) & 0xff;
+	}
+	int32_result[0] = (int32[0] * int8) + v;
+	if (int32[0] > int32_result[0]){
+		/* overflow */
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+div_pow_int32(int32, power)
+char*	int32;
+char	power;
+{
+	/*
+		Divide a 32bit number by a power of 2.
+		e.g. 65536 / 2^7 = 512
+		
+		Input:
+			char*	int32	- Pointer to 32bit value in memory.
+			char	power	- The power of 2 to divide by.
+			
+		Result:
+			Updates the value of int32. No remainder.
+	*/
+	
+	char i;
+	char v, old_v;
+	
+	v = 0;
+	for (i = 0; i < 4; i++){
+		old_v = (int32[i] << 1);
+		int32[i] = (int32[i] >> power) + v;
+		v = old_v;
+	}
 }
 
 zero_int32(int32_result)
@@ -254,7 +294,6 @@ char*	int32_result;
 	int32_result[1] = 0x00;
 	int32_result[2] = 0x00;
 	int32_result[3] = 0x00;
-	return 0;
 }
 
 copy_int32(int32_result, int32)
@@ -264,26 +303,4 @@ char*	int32;
 	/* Copies a 32bit number */
 	
 	memcpy(int32_result, int32, 4);
-	return 0;
-}
-
-isBitSet(c, n)
-char	c;
-char	n;
-{
-	/* 
-		Not a 32bit math operation, but simple bit test -
-		is a bit as pos n set in char c.
-	*/
-	char mask[];
-	mask[0] = 128;
-	mask[1] = 64;
-	mask[2] = 32;
-	mask[3] = 16;
-	mask[4] = 8;
-	mask[5] = 4;
-	mask[6] = 2;
-	mask[7] = 1;
-	
-	return ((c & mask[n]) != 0);
 }

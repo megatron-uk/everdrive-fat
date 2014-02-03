@@ -166,6 +166,7 @@ char*	f_path;
 					put_string("o", n, 7);
 					n++;
 					#endif
+					
 					return fptr;
 				} else {
 					/* file entry wasn't found, the filename is invalid */
@@ -229,9 +230,9 @@ char	fptr;
 Read/Write multiple bytes
 =============================== */
 
-fread(fptr, f_buf, n_bytes)
+fread(fptr, n_bytes)
 char	fptr;
-char*	f_buf;
+/*char*	f_buf;*/
 int	n_bytes;
 {
 	/* 
@@ -247,6 +248,63 @@ int	n_bytes;
 			0 on success
 			Non-zero error code on failure
 	*/
+		
+	/* 
+		did we do a partial read last time?
+			yes
+				do we still own sector_buffer?
+					yes
+						copy remaining bytes to f_buf (eg pos 500 - 512)
+						if we read n_bytes then return size
+						else
+						decrement n_bytes
+					no
+						set ownsership of sector buffer
+						read entire sector
+						copy bytes from old seek pos to f_buf (eg pos 500 - 512)
+						if we read n_bytes then return size
+						else
+						decrment n_bytes
+			no
+				skip
+				
+		if n_bytes > 0
+		check if any sectors are left in the current cluster
+			yes
+				increment sector number
+				set ownership of sector buffer
+				read sector
+				copy new bytes to f_buf (eg pos 0 - 116)
+				return size
+			no
+				check if there are any more clusters
+				yes
+					set new cluster number
+					get new sector number
+					set ownership of sector_buffer
+					read sector
+					copy new bytes to f_buf (eg pos 0 - 116)
+					return size
+				no
+					send EOF
+	*/
+		
+	/* restore the sector buffer for our use, if necessary */
+	/*restore_sector_buffer(fptr);*/
+	
+	/* are we reading more than a single sector */
+	
+	/* are we reading exactly a single sector */
+
+	disk_read_single_sector(int32_to_int16_lsb(fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_Sector_LBA_os), int32_to_int16_msb(fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_Sector_LBA_os), sector_buffer);
+	
+	/* TODO: increment file offset pointer */
+	
+	/* TODO: increment cluster count (if needed) */
+	
+	/* TODO: increment cluster (if needed) */
+	
+	return 0;
 }
 
 fwrite(fptr, f_buf, n_bytes)
@@ -402,85 +460,35 @@ char	file_type;
 	cs = 0;
 	#endif
 	
-	#ifdef FILEDEBUG
-	/* What is the current 'working' directory - is it the root dir cluster */
-	if (memcmp(fwa + FILE_Cur_Cluster_os, fs_root_dir_cluster, 4) == 0){
-		/* Yes root cluster */
-		put_string("searching root directory", 0, 9);
-	} else {
-		/* No, some other cluster - we're in a sub dir */
-		put_string("searching sub-directory", 0, 9);
-	}
-	#endif
 	get_sector_for_cluster(addr, fwa + FILE_Cur_Cluster_os);
 
 	/* Mark the sector buffer as in use by this file pointer now */
-	sector_buffer_current_fptr = 0;
+	restore_sector_buffer(0);
 	
 	/* Set the next cluster to initially be the first one we know */
 	memcpy(next_cluster, fwa + FILE_Cur_Cluster_os, 4);
-	
-	#ifdef FILEDEBUG
-	if (file_type == FILE_TYPE_DIR){
-		put_string("subdir search :            ", 0, 8);
-		put_string(filename, 15, 8);
-	} else {
-		put_string("file search   :            ", 0, 8);
-		put_string(filename, 15, 8);	
-	}
-	#endif
-	
+		
 	/* While there are some clusters left in this chain ... */
-	#ifdef FILEDEBUG
-	put_string("cluster:        h/        h LBA", 0, 10);
-	put_string("sector :    /   ", 0, 11);
-	put_number(fs_sectors_per_cluster, 3, 13, 11);
-	#endif
 	while (int32_is_zero(next_cluster) != 1){
-		#ifdef FILEDEBUG
-		put_hex_count(next_cluster, 4, 8, 10);
-		put_hex_count(addr, 4, 18, 10);
-		c++;
-		#endif
 		/* Until we've exhausted all sectors from this cluster ... */
 		for (s = 0; s < fs_sectors_per_cluster; s++){
-			#ifdef FILEDEBUG
-			put_number(s, 3, 8, 11);
-			cs++;
-			#endif
 			/* Read 512 bytes of the sector into the buffer */
 			everdrive_error = disk_read_single_sector(int32_to_int16_lsb(addr), int32_to_int16_msb(addr), sector_buffer);
 			if (everdrive_error != ERR_NONE){
-				#ifdef FILEDEBUG
-				put_string("Error reading data", 0, MAX_LINES - 2);
-				#endif
 				return ERR_IO_ERROR;
 			}
 			/* loop through each 32byte record of this sector (16 records per sector) to see if we find a directory entry that matches */
 			for (d = 0; d < 16; d++){
-				#ifdef FILEDEBUG
-				put_string("                           ", 0, 12 + d);
-				#endif
 				/* Check the type of the directory entry */ 
 				if (is_end_of_dir(sector_buffer + (d * FILE_DIR_sz))){
-					
 					/* end of directory */
-					#ifdef FILEDEBUG
-					put_string("<   > END", 0, 12 + d);
-					#endif
 					return ERR_END_OF_DIRECTORY;
 					
 				} else if (is_empty_dir_entry(sector_buffer + (d * FILE_DIR_sz))){
 					/* unused directory entry */
-					#ifdef FILEDEBUG
-					put_string("<   > Empty", 0, 12 + d);
-					#endif
 					
 				} else if (is_lfn_dir_entry(sector_buffer + (d * FILE_DIR_sz))){
 					/* longfilename directory entry */
-					#ifdef FILEDEBUG
-					put_string("<   > LFN", 0, 12 + d);
-					#endif
 					
 				} else {
 					/* normal directory entry - could be file or subdir */
@@ -488,117 +496,148 @@ char	file_type;
 					/* is it a sub dir - check bit 3 of the attrib byte */
 					if (is_sub_dir(sector_buffer + (d * FILE_DIR_sz))){
 						/* sub dir */
-						#ifdef FILEDEBUG
-						put_string("<DIR> ", 0, 12 + d);
-						put_string_count(sector_buffer + (d * FILE_DIR_sz), 11, 6, 12 + d);
-						#endif
 						
 						/* are we actually looking for a subdir at this point */
 						if (file_type == FILE_TYPE_DIR){
 							if (short_filename_match(sector_buffer + (d * FILE_DIR_sz) + DIR_Name_os, filename, 12 + d) == 1){
-								#ifdef FILEDEBUG
-								put_string("!", 30, 12 + d);
-								#endif
 								/* we found the sub directory!
 								store the directory entry, so the next search will start
 								from that folder/cluster instead of root */
 								store_directory_entry(sector_buffer + (d * FILE_DIR_sz), 0, 0);
 								return 0;
-							} else {
-								#ifdef FILEDEBUG
-								put_string(".", 30, 12 + d);
-								#endif
 							}
 						}
 					} else {
 						/* file */
-						#ifdef FILEDEBUG
-						put_string("<FIL> ", 0, 12 + d);
-						put_string_count(sector_buffer + (d * FILE_DIR_sz), 11, 6, 12 + d);
-						#endif
 						
 						/* are we actually looking for a file at this point */
 						if (file_type == FILE_TYPE_FILE){
 							if (short_filename_match(sector_buffer + (d * FILE_DIR_sz) + DIR_Name_os, filename, 12 + d) == 1){
-								#ifdef FILEDEBUG
-								put_string("!", 30, 12 + d);
-								#endif
 								/* we found the file!
 								store its directory entry under the correct file pointer number */
 								store_directory_entry(sector_buffer + (d * FILE_DIR_sz), fptr, 0);
 								return 0;
-							} else {
-								#ifdef FILEDEBUG
-								put_string(".", 30, 12 + d);
-								#endif
 							}
 						}
 					}
 				}
 			}
-			
-			/* Increment sector position */
-			if (get_next_sector(addr) != 0){
-				#ifdef FILEDEBUG
-				put_string("No more sectors in FS", 0, MAX_LINES - 2);
-				#endif
-				return ERR_FS_END;	
-			}
 		}
-		/* lookup next cluster */
-		if (get_next_cluster(next_cluster, fwa + FILE_Cur_Cluster_os) != 0){
-			zero_int32(next_cluster);
-		} else {
-			/* update address for disk read from the next cluster for this directory */	
-			mul_int32_int8(addr, next_cluster, fs_sectors_per_cluster);
+		/* lookup and set next cluster */
+		if (get_next_cluster(fwa + FILE_Cur_Cluster_os, 1) != 0){
+			/* If there isn't a next cluster, return file not found and end of chain */
+			return ERR_END_OF_CHAIN;
 		}
 	}
-	#ifdef FILEDEBUG
-	put_string("Nothing found", 0, MAX_LINES - 2);
-	#endif
 	return ERR_FILE_NOT_FOUND;
 }
 
-get_next_sector(sector_address)
-char*	sector_address;
+get_next_sector(dir_entry, set)
+char*	dir_entry;
+char	set;
 {
 	/* 
 		Increment sector address if there are any remaining sectors in this filesystem 
 	
 		Input:
-			char*	sector_address	- pointer to 32bit number representing a LBA sector address;
+			char*	dir_entry	- pointer to directory entry structure.
+			char	set		- if true, updates directory entry current sector fields.
 			
 		Output:
-			0 on success and sets *sector_address.
-			Non-zero on reaching sector limit.
+			0 on success and detection of an available next sector within the current cluster.
+			Non-zero on no next sector within the current cluster.
 	*/
 	
 	/* TODO: Check max sector count of partition */
-	
-	inc_int32(sector_address);
-	
+		
 	return 0;
 }
 
-get_next_cluster(next_cluster, cluster)
-char*	next_cluster;
-char*	cluster;
+restore_sector_buffer(fptr)
+char	fptr;
 {
 	/*
-		Given a cluster number, read the FAT to see what its next cluster in the chain is.
+		If the sector buffer is not currently owned by this file pointer it
+		reverts it to the state time it was used according to the file metadata 
+		in the file work area for this pointer.
+		
+		This should be present at the start of every fread(), fseek(), fget(), fwrite() etc. function call.
 		
 		Input:
-			char*	next_cluster	- pointer to 32bit number to set on success.
-			char*	cluster		- pointer to 32bit number representing current cluster.
+			char	fptr		- The number of the file pointer.
 			
 		Returns:
-			0 on success and sets *next_cluster.
-			Non-zero on cluster not found or no next cluster and sets *next_cluster = cluster.
+			0 on Success and restoration of the sector buffer.
+			Non-zero on error.
+	*/
+
+	int	addr_lo, addr_hi;
+	/* Don't need to do anything, already own the buffer */
+	if (sector_buffer_current_fptr == fptr) return 0;
+	
+	sector_buffer_current_fptr = fptr;
+	
+	/* If the position in sector buffer value is not 0 then re-read the last sector */
+	if ((fwa[((fptr * FILE_WORK_SIZE) + FILE_Cur_PosInBuffer_os)] != 0) || (fwa[((fptr * FILE_WORK_SIZE) + FILE_Cur_PosInBuffer_os + 1)] != 0)){
+		addr_lo = int32_to_int16_lsb(fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_Sector_LBA_os);
+		addr_hi = int32_to_int16_msb(fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_Sector_LBA_os);
+		everdrive_error = disk_read_single_sector(addr_lo, addr_hi, sector_buffer);
+		if (everdrive_error != ERR_NONE){
+			return ERR_IO_ERROR;
+		}
+	}
+	
+	return 0;
+	
+}
+
+get_next_cluster(dir_entry, set)
+char*	dir_entry;
+char	set;
+{
+	
+	/*
+		Given a directory entry, read the FAT to see what its next cluster in the chain is.
+		How to find a FAT entry for a cluster 
+		A FAT entry is 32bits
+		128 entries per sector (sector = 512bytes)
+		
+		cluster_number == FAT entry number
+		
+		e.g. cluster_number 255
+			255 / 128 = 1.....
+			sector = fs_fat_lba_begin + 1
+		
+		Input:
+			char*	dir_entry	- pointer to directory entry structure.
+			char	set		- if true, updates directory entry current cluster and current sector fields.
+			
+		Returns:
+			0 on success and detection of the available next cluster.
+			Non-zero on cluster not found or no next cluster.
 	*/
 	
+	char	fat_sector_lba[4];
+	char	fat_sector_offset[4];
+	
+	restore_sector_buffer(0);
+	
+	/* Take a copy of the current cluster number */	
+	copy_int32(fat_sector_offset, dir_entry + FILE_Cur_Cluster_os);
+	/* Divide by 128 to get the sector offset that it's fat 
+	entry should be from the start of the FAT */
+	div_pow_int32(fat_sector_offset, 7);
+	/* Add the offset onto the start sector for the fat */
+	add_int32(fat_sector_lba, fs_fat_lba_begin, fat_sector_offset);
+	
+	everdrive_error = disk_read_single_sector(int32_to_int16_lsb(fat_sector_lba), int32_to_int16_msb(fat_sector_lba), sector_buffer);
+	if (everdrive_error != ERR_NONE){
+		return ERR_IO_ERROR;
+	}
+
 	return 1;
 }
-	
+
 is_empty_dir_entry(dir_entry)
 char*	dir_entry;
 {
@@ -645,10 +684,10 @@ char*	cluster_number;
 	
 	/* 
 		formula to work out LBA address based on cluster number:
-		lba_addr = cluster_begin_lba + ((cluster_number - 2) * sectors_per_cluster);
+		lba_addr = cluster_begin_lba + ((cluster_number - 2) * sectors_per_cluster);		
 	*/
 	
-	char* offset_num_clusters[4], offset_num_sectors[4];
+	char offset_num_clusters[4], offset_num_sectors[4];
 	
 	if (memcmp(cluster_number, fs_root_dir_cluster, 4) == 0){
 		memcpy(address, fs_cluster_lba_begin, 4);
@@ -658,6 +697,7 @@ char*	cluster_number;
 		dec_int32(offset_num_clusters);
 		dec_int32(offset_num_clusters);
 		mul_int32_int8(offset_num_sectors, offset_num_clusters, fs_sectors_per_cluster);
+		put_hex_count(offset_num_clusters, 4, 0, MAX_LINES);
 		add_int32(address, fs_cluster_lba_begin, offset_num_sectors);
 	}
 }
@@ -669,7 +709,7 @@ char	use_root;
 {
 	/*
 		Update the subdir entry / file metadata for
-		a given file pointer from a base address in 
+		a given file0x2590 + ((15e - 2) * 8) pointer from a base address in 
 		memory (usually a found directory entry).
 		
 		Input:
@@ -694,10 +734,10 @@ char	use_root;
 		
 	} else {
 		/* No, store new (sub) directory or file entry */
-		memcpy(fwa + (fptr * FILE_DIR_os), base_addr, FILE_DIR_sz); 
+		memcpy(fwa + (fptr * FILE_WORK_SIZE), base_addr, FILE_DIR_sz); 
 		
 		/* Byte swap from little to big-endian: filesize and cluster number */
-		swap_int32(fwa + (fptr * FILE_DIR_os) + DIR_FileSize_os);
+		swap_int32(fwa + (fptr * FILE_WORK_SIZE) + FILE_DIR_os + DIR_FileSize_os);
 		swap_int16(fwa + (fptr * FILE_WORK_SIZE) + FILE_DIR_os + DIR_FstClusHI_os);
 		swap_int16(fwa + (fptr * FILE_WORK_SIZE) + FILE_DIR_os + DIR_FstClusLO_os);
 		
@@ -720,6 +760,13 @@ char	use_root;
 		found in the directory entry fields */
 		memcpy(fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_Cluster_os, fwa + (fptr * FILE_WORK_SIZE) + FILE_DIR_os + DIR_FstClusHI_os, 2);
 		memcpy(fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_Cluster_os + 2, fwa + (fptr * FILE_WORK_SIZE) + FILE_DIR_os + DIR_FstClusLO_os, 2);
+	
+		/* Set current sector number to be the first one in the starting cluster */
+		get_sector_for_cluster(fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_Sector_LBA_os, fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_Cluster_os);
+		
+		/* set current sector count (of N sectors per cluster) to be 0 */
+		fwa[((fptr * FILE_WORK_SIZE) + FILE_Cur_Sector_Count_os)] = 0;
+		fwa[((fptr * FILE_WORK_SIZE) + FILE_Cur_Sector_Count_os + 1)] = 0;
 	}
 }
 
