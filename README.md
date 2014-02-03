@@ -28,9 +28,9 @@ You can find example implementations of the everdrive-fat library under:
 
 examples/
 * test-detect.c - Detailed SD card detection, partition identifier and FAT filesystem info, demonstrates the fat-dev.h, fat-vol.h functions.
-* test-files.c - Example code for testing the functionality of fopen() as included in fat-files.h.
+* test-files.c - Example code for testing the functionality of fopen() and fread() as included in fat-files.h.
 * test-textreader.c - Not yet implemented.
-* test-speed.c - Not yet implemented.
+* test-speed.c - Example code for testing the speed of reading sectors from the SD card.
 
 To include the driver in your game/utility, copy the contents of the 'src' directory and include "fat.h" in your main code. Take a look at the examples for useage details.
 
@@ -52,7 +52,7 @@ The fat library can currently do the following:
 * DOS Master Boot Record - Can autodetect the first available FAT partition and extract start sector information, setting it as the current partition for a given session. Can also choose partition 1-4 manually, setting it as current for a session.
 * FAT Volume Record - Can read FAT volume sector information, reading sector/cluster sizes, FAT table starting addresses and data cluster start, resulting in the starting address of the root directory cluster for the filesystem.
 * Directories - Directory traversal to find named files/folders is implemented and working via the fopen() call.
-* Files - File IO not yet implemented.
+* Files - Initial file (read) support is implemented in fread(). For now only the first 512 bytes of a file can be read as the file pointer and get-next-sector logic in not implemented.
 
 
 Feedback
