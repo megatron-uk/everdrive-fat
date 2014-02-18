@@ -30,15 +30,15 @@
 * 
 * int32_to_int16_lsb	- returns the 16 least significant bits of a 32bit number
 * int32_to_int16_msb	- returns the 16 most significant bits of a 32bit number
-* int8_to_int32() 		- Converts an unsigned single byte char to a 4byte 32bit number
-* int16_to_int32() 		- Converts an unsigned two byte int to a 4byte 32bit number
-* int32_is_zero() 		- Tests if a 4byte 32bit number is zero
+* int8_to_int32() 	- Converts an unsigned single byte char to a 4byte 32bit number
+* int16_to_int32() 	- Converts an unsigned two byte int to a 4byte 32bit number
+* int32_is_zero() 	- Tests if a 4byte 32bit number is zero
 * add_int32() 		- Adds two 4byte 32bit numbers - does not handle overflow
 * sub_int32() 		- NOT IMPLEMENTED!!!
 * mul_int32() 		- NOT IMPLEMENTED!!!
 * mul_int32_int16()	- SLOW!!! Multiplies a 4byte 32bit number by a 16bit integer - does not handle overflow - needs refactoring
-* mul_int32_int8()		- Multiplies a 4byte 32bit number by a 8bit integer - does not handle overflow - needs refactoring
-* div_pow_int32()		- Divides a 32bit number by a given power of 2. Uses bit shifting.
+* mul_int32_int8()	- Multiplies a 4byte 32bit number by a 8bit integer - does not handle overflow - needs refactoring
+* div_pow_int32()	- Divides a 32bit number by a given power of 2. Uses bit shifting.
 * zero_int32()		- Initialises a 4byte packed 32bit number (sets each memory location to 0x00)
 */
 

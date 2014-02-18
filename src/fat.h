@@ -53,6 +53,8 @@
 #define MAX_LINES		27
 #define INFO_LINE_START		10	
 #define SECTOR_SIZE		512
+#define CLUSTER_FAT_ENTRIES_PER_SECTOR	128
+#define CLUSTER_FAT_ENTRY_SIZE	4
 
 /* MBR/FAT/Volume errors */
 #define ERR_NO_PART_ENTRY	146
@@ -180,21 +182,21 @@
 */
 
 /* read buffer */
-char	sector_buffer_current_fptr;		/* Which open fptr has data in the sector_buffer (as the buffer may need to be flushed when multiple files are open). */
+char	sector_buffer_current_fptr;	/* Which open fptr has data in the sector_buffer (as the buffer may need to be flushed when multiple files are open). */
 char 	sector_buffer[SECTOR_SIZE];	/* Memory to read each sector in from the Turbo Everdrive SD card. */
-char	everdrive_error;			/* Hold error codes from low level everdrive routines. */
+char	everdrive_error;		/* Hold error codes from low level everdrive routines. */
 char	lba_addressing;			/* Flag to indicate whether LBA addressing (SDHC) or byte addressing (SD) is active. */
 
 /* partition entry for the selected/detected partition */
 char	part_entry[16];			/* Holds the partition entry from the master boot record for the current selected partition. */
 char 	part_type;			/* The hex code for the partition type of the current selected partition - only FAT32 are allowed */
 char 	part_number;			/* The partition number (1-4) of the current selected partition. */
-char	part_lba_begin[4];			/* The starting LBA address pf the current selected partition. */
+char	part_lba_begin[4];		/* The starting LBA address pf the current selected partition. */
 
 /* the volume entry for the selected partition */
 char	fs_fat_lba_begin[4];		/* The starting LBA address of the FAT table for the current filesystem. */
 char	fs_fat_sig[2];			/* The detected 0xAA55 byte signature of the current filesystem. */
-char	fs_cluster_lba_begin[4];		/* Where the first data cluster is of the current filesystem. */
+char	fs_cluster_lba_begin[4];	/* Where the first data cluster is of the current filesystem. */
 char	fs_num_fats;			/* The number of FAT tables for the current filesystem (should always be 2). */
 int	fs_reserved_sectors;		/* The number of reserved sectors after the FAT tables and before the data clusters. */
 int	fs_sector_size;			/* The size of a single sector in this filesystem, in bytes. */
@@ -236,6 +238,18 @@ char	fs_root_dir_cluster[4];		/* Location of the first cluster of the root direc
 
 /* ============================================================= */
 
+/* FAT entry structure
+*
+* The structure of an entry in the FAT table 
+* The FAT is just a big list of 32bit integers, stored as 128
+* of these integers per sector (assuming 512byte sectors).
+*/
+
+/* FAT entry structure */
+#define FAT_Next
+
+/* ============================================================= */
+
 /* Metadata we hold open files
 *
 * As we don't have struct support, we allocate a region
@@ -248,16 +262,12 @@ char	fs_root_dir_cluster[4];		/* Location of the first cluster of the root direc
 #define FILE_DIR_sz			32
 #define FILE_Total_Clusters_os	 	0x20 	/* 2 bytes to hold the total number of clusters the file occupies (eg 10). */
 #define FILE_Total_Clusters_sz		2
-/*
-#define FILE_Total_Sectors_os	 	2 bytes to hold the total number of sectors the cluster contains.
-#define FILE_Total_Sectors_sz		This is not needed as it is available from fs_sectors_per_cluster.
-*/
-#define FILE_Cur_Cluster_Count_os 		0x22 	/* 2 bytes to hold the count of the current cluster we're reading (eg 2 of 10). */
-#define FILE_Cur_Cluster_Count_sz		2
+#define FILE_Cur_Cluster_Count_os 	0x22 	/* 2 bytes to hold the count of the current cluster we're reading (eg 2 of 10). */
+#define FILE_Cur_Cluster_Count_sz	2
 #define FILE_Cur_Cluster_os 		0x24 	/* 4 bytes to hold the actual number of the cluster we're reading (eg 0x00000003). */
 #define FILE_Cur_Cluster_sz		4
-#define FILE_Cur_Sector_Count_os 		0x28	/* 2 bytes to hold the count of the current sector in this cluster (eg 4 of 64). */
-#define FILE_Cur_Sector_Count_sz 		2
+#define FILE_Cur_Sector_Count_os 	0x28	/* 2 bytes to hold the count of the current sector in this cluster (eg 4 of 64). */
+#define FILE_Cur_Sector_Count_sz 	2
 #define FILE_Cur_Sector_LBA_os 		0x2A 	/* 4 bytes to hold the actual LBA of the sector we're reading (eg 0x00004040). */
 #define FILE_Cur_Sector_LBA_sz		4
 #define FILE_Cur_PosInFile_os 		0x2E	/* 4 bytes to hold the current position in the overall file (eg 127860 of 10245560 bytes) */
