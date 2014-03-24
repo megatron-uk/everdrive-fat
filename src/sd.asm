@@ -718,13 +718,11 @@ disk_read_single_sector:
 
 ;;---------------------------------------------------------------------
 ; name : spi_write_to_card
-; desc : Write 512 bytes from ram to sd
+; desc : Write 512 bytes from ram to sd 
 ; in   : <ed_block_cp_src [todo]
-; out  : X : ERR_TIMEOUT    Failed to read SPI register after numerous try.
-;            ERR_REG_ERROR  The SPI register value is incorrect.
-;            ERR_NONE (0)   The buffer was successfully copied.
+; out  : 
 ;;---------------------------------------------------------------------
-spi_write_to_card:   
+spi_write_to_card:  
     ; We don't use memory copy here.
     
     ; Send token
@@ -748,7 +746,19 @@ spi_write_to_card:
     jsr    spi_send
     iny
     bne    .l1
-   
+    
+    rts
+    
+;;---------------------------------------------------------------------
+; name : spi_finalize_write
+; desc : Finalize write operation.
+;        Send CRC, read response and wait until the card is busy.
+; in   :
+; out  : X : ERR_TIMEOUT    Failed to read SPI register after numerous try.
+;            ERR_REG_ERROR  The SPI register value is incorrect.
+;            ERR_NONE (0)   The buffer was successfully copied.
+;;---------------------------------------------------------------------
+spi_finalize_write:
     ; Send dummy CRC (ffff)
     lda    #$ff
     jsr    spi_send
@@ -761,9 +771,15 @@ spi_write_to_card:
     and    #SD_DATA_RES_MASK
     cmp    #SD_DATA_RES_ACCEPTED
     bne    .nok
+
+.busy_loop:    
+    ; 8 cycles "wait"
+    lda    #$ff
+    jsr    spi_send
     
-    ; Wait for the end of transfer
-    jsr    spi_wait_ready
+    jsr    spi_recv
+    cmp    #$00
+    beq    .busy_loop
     
     ldx    #ERR_NONE
     rts
@@ -773,7 +789,6 @@ spi_write_to_card:
     rts
     
 ;;---------------------------------------------------------------------
-; [todo] test it!
 ; name : disk_write_single_sector
 ; desc : Write a single sector.
 ; in   : <_ed_addr 32 bytes address (byte address on standard SD)
@@ -798,9 +813,13 @@ disk_write_single_sector:
     SPI_SS_ON
     
     jsr    spi_write_to_card
+    jsr    spi_finalize_write
     
     SPI_SS_OFF
-     
+    
+    lda    #$ff
+    jsr    spi_send
+    
     rts
         
 ;;---------------------------------------------------------------------
