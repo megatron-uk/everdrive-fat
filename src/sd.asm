@@ -255,6 +255,29 @@ spi_send:
     rts
 
 ;;---------------------------------------------------------------------
+; name : spi_wait_ready
+; desc : Wait until spi register equals $ff
+; in   : 
+; out  : A spi register value
+;        C flag is set if timeout occured
+;;--------------------------------------------------------------------- 
+spi_wait_ready:
+    stw    #SPI_TIMEOUT, <_ed_timeout
+.loop:
+    jsr    spi_recv
+    cmp    #$ff
+    bne    .end
+
+    decw   <_ed_timeout
+    ora    <_ed_timeout
+    bne    .loop
+.timeout:
+    rts
+.end:
+    clc
+    rts
+    
+;;---------------------------------------------------------------------
 ; name : mmc_cmd
 ; desc : Write a byte to spi register.
 ; in   : A command
@@ -535,41 +558,30 @@ disk_init:
 ;            ERR_NONE (0)   The buffer was successfully copied.
 ;;---------------------------------------------------------------------
 spi_send_to_ram:
-    clx
-    cly
-.wait_spi
-    lda    #$ff
-    sta    SPI_REG_ADDR
-    lda    SPI_REG_ADDR
-    cmp    #SD_DATA_START_BLOCK
-    beq    .begin_transfer
-    
-    dey
-    bne    .wait_spi
-    dex
-    bne    .wait_spi
-    
+    jsr    spi_wait_ready
+    bcc    .check_token
 .timeout:
     ldx    #ERR_TIMEOUT
     rts
-    
+.check_token: 
+    cmp    #SD_DATA_START_BLOCK
+    beq    .begin_transfer
+        ldx    #DISK_ERR_RD1
+        rts
+        
 .begin_transfer:
     ; Setup RAM copy instruction
     lda    #MEMCPY_SOURCE_ALT_DEST_INC
     sta    <ed_block_cp_inst
     stw    #SPI_REG_ADDR, <ed_block_cp_src
 
-    lda    SPI_REG_ADDR + REG_SPI_CFG
-    ora    #4
-    sta    SPI_REG_ADDR + REG_SPI_CFG
+    SPI_AREAD_ON
 
     lda    SPI_REG_ADDR
     jsr    ed_block_cp_inst
     lda    SPI_REG_ADDR
 
-    lda    SPI_REG_ADDR + REG_SPI_CFG
-    and    #3
-    sta    SPI_REG_ADDR + REG_SPI_CFG
+    SPI_AREAD_OFF
     
     clx    ; ERR_NONE
     rts
@@ -683,7 +695,7 @@ disk_read_single_sector:
     stw    <_ed_addr+2, <_ed_buffer+2
     stw    <_ed_addr,   <_ed_buffer
     lda    #SD_CMD_READ_BLOCK
-    ldx    #$95
+    ldx    #$87
     jsr    mmc_cmd
     cpx    #ERR_NONE
     beq    .l1
@@ -706,37 +718,70 @@ disk_read_single_sector:
 
 ;;---------------------------------------------------------------------
 ; name : spi_write_to_card
-; desc : Write 512 bytes from ram to sd
+; desc : Write 512 bytes from ram to sd 
 ; in   : <ed_block_cp_src [todo]
+; out  : 
+;;---------------------------------------------------------------------
+spi_write_to_card:  
+    ; We don't use memory copy here.
+    
+    ; Send token
+    lda    #SD_DATA_START_BLOCK
+    jsr    spi_send
+    
+    ; Copy first 256 bytes
+    cly
+.l0:
+    lda    [ed_block_cp_src], Y
+    jsr    spi_send
+    iny
+    bne    .l0
+
+    inc    <ed_block_cp_src+1
+    
+    ; Copy last 256 bytes
+    cly
+.l1:
+    lda    [ed_block_cp_src], Y
+    jsr    spi_send
+    iny
+    bne    .l1
+    
+    rts
+    
+;;---------------------------------------------------------------------
+; name : spi_finalize_write
+; desc : Finalize write operation.
+;        Send CRC, read response and wait until the card is busy.
+; in   :
 ; out  : X : ERR_TIMEOUT    Failed to read SPI register after numerous try.
 ;            ERR_REG_ERROR  The SPI register value is incorrect.
 ;            ERR_NONE (0)   The buffer was successfully copied.
 ;;---------------------------------------------------------------------
-spi_write_to_card:
-    ; Setup RAM copy instruction
-    lda    #MEMCPY_SOURCE_INC_DEST_ALT ; [todo] if this fails, try MEMCPY_SOURCE_INC_DEST_NOP
-    sta    <ed_block_cp_inst
-    stw    #SPI_REG_ADDR, <ed_block_cp_dst
-
-    ; Send token
-    lda    #SD_DATA_START_BLOCK
-    sta    SPI_REG_ADDR
-    
-    ; Copy data
-    jsr    ed_block_cp_inst
-    
+spi_finalize_write:
     ; Send dummy CRC (ffff)
     lda    #$ff
-    sta    SPI_REG_ADDR
-    sta    SPI_REG_ADDR
+    jsr    spi_send
+    
+    lda    #$ff
+    jsr    spi_send
     
     ; Read response
-    lda    SPI_REG_ADDR
+    jsr    spi_recv
     and    #SD_DATA_RES_MASK
     cmp    #SD_DATA_RES_ACCEPTED
     bne    .nok
+
+.busy_loop:    
+    ; 8 cycles "wait"
+    lda    #$ff
+    jsr    spi_send
     
-    clx    ; ERR_NONE
+    jsr    spi_recv
+    cmp    #$00
+    beq    .busy_loop
+    
+    ldx    #ERR_NONE
     rts
 
 .nok:
@@ -744,7 +789,6 @@ spi_write_to_card:
     rts
     
 ;;---------------------------------------------------------------------
-; [todo] test it!
 ; name : disk_write_single_sector
 ; desc : Write a single sector.
 ; in   : <_ed_addr 32 bytes address (byte address on standard SD)
@@ -758,7 +802,7 @@ disk_write_single_sector:
     stw    <_ed_addr+2, <_ed_buffer+2
     stw    <_ed_addr,   <_ed_buffer
     lda    #SD_CMD_WRITE_BLOCK
-    ldx    #$01     ; dummy CRC
+    ldx    #$87     ; dummy CRC
     jsr    mmc_cmd
     cpx    #ERR_NONE
     beq    .l1
@@ -769,8 +813,13 @@ disk_write_single_sector:
     SPI_SS_ON
     
     jsr    spi_write_to_card
+    jsr    spi_finalize_write
     
     SPI_SS_OFF
+    
+    lda    #$ff
+    jsr    spi_send
+    
     rts
         
 ;;---------------------------------------------------------------------
