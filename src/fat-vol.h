@@ -260,7 +260,7 @@ getFATFS()
 {
 	/* 
 		Read filesystem parameters from an already read partition entry and volume sector 
-		part_entry			- Already read 16 byte partition record from the call to getMBRPart()
+		part_entry			- Already read 16 byte partition record from the call to getPartBegin()
 		fs_volume_entry		- Already read 16 byte filesystem sector 0 record from the call to getFATVolume()
 		
 		Set the following global variables which are needed to read directories and files from a fat filesystem:

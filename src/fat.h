@@ -49,32 +49,34 @@
 
 /* ================================================================ */
 
-/* number of text lines in low res mode */
-#define MAX_LINES		27
-#define INFO_LINE_START		10	
-#define SECTOR_SIZE		512
-#define CLUSTER_FAT_ENTRIES_PER_SECTOR	128
-#define CLUSTER_FAT_ENTRY_SIZE	4
+/* number of text lines in low res mode -
+used by some of the test functions/demos */
+#define MAX_LINES			27
+#define INFO_LINE_START		10
+
+/* FAT defaults */
+#define SECTOR_SIZE					512
+#define CLUSTER_FAT_ENTRIES_SECT	128
+#define CLUSTER_FAT_ENTRY_SIZE		4
 
 /* MBR/FAT/Volume errors */
-#define ERR_NO_PART_ENTRY	146
-#define ERR_MISS_MBR_CKSUM 	147
-#define ERR_MISS_FAT_SIG 	148
+#define ERR_NO_PART_ENTRY		146
+#define ERR_MISS_MBR_CKSUM 		147
+#define ERR_MISS_FAT_SIG 		148
 #define ERR_MISS_ROOT_CLUSTER	149
-#define ERR_NO_RES_SECTORS	150
-#define ERR_NO_FAT_COUNT	151
+#define ERR_NO_RES_SECTORS		150
+#define ERR_NO_FAT_COUNT		151
 #define ERR_NO_SECT_SIZE_INFO	152
 
 /* File/directory errors */
-#define ERR_FILE_NOT_FOUND	153
-#define ERR_DIR_NOT_FOUND	154
-#define ERR_FS_END		155
-#define ERR_END_OF_CHAIN	156
+#define ERR_FILE_NOT_FOUND		153
+#define ERR_DIR_NOT_FOUND		154
+#define ERR_FS_END				155
+#define ERR_END_OF_CHAIN		156
 #define ERR_END_OF_DIRECTORY	157
 #define ERR_FILENAME_TOO_LONG	158
-#define ERR_NO_FREE_FILES	159
-#define	ERR_IO_ERROR		199 /* read 'everdrive_error' for actual error code */
-
+#define ERR_NO_FREE_FILES		159
+#define	ERR_IO_ERROR			199 /* read 'everdrive_error' for actual error code */
 
 /* ================================================================ */
 
@@ -88,8 +90,8 @@
 * values of the 2 check bytes 
 */
 
-#define MBR_Part_os		0x0000
-#define MBR_Part_sz		16
+#define MBR_Part_os			0x0000
+#define MBR_Part_sz			16
 #define MBR_Part_1_os		0x01BE
 #define MBR_Part_2_os		0x01CE
 #define MBR_Part_3_os		0x01DE
@@ -164,11 +166,11 @@
 #define FAT_FATSz32_sz		4
 #define FAT_RootClus_os		0x2C 	/* Root Directory First Cluster - 32 Bits - Usually 0x00000002 */
 #define FAT_RootClus_sz		4
-#define FAT_Sig_os		0x1FE 	/* Signature - 16 Bits - Always 0xAA55 */
-#define FAT_Sig_sz		2
+#define FAT_Sig_os			0x1FE 	/* Signature - 16 Bits - Always 0xAA55 */
+#define FAT_Sig_sz			2
 #define FAT_Sig_byte_1		0xAA
 #define FAT_Sig_byte_2		0x55
-#define FAT_Sig			0xAA55
+#define FAT_Sig				0xAA55
 
 /* ======================================================================= */
 
@@ -184,34 +186,34 @@
 /* read buffer */
 char	sector_buffer_current_fptr;	/* Which open fptr has data in the sector_buffer (as the buffer may need to be flushed when multiple files are open). */
 char 	sector_buffer[SECTOR_SIZE];	/* Memory to read each sector in from the Turbo Everdrive SD card. */
-char	everdrive_error;		/* Hold error codes from low level everdrive routines. */
-char	lba_addressing;			/* Flag to indicate whether LBA addressing (SDHC) or byte addressing (SD) is active. */
+char	everdrive_error;			/* Hold error codes from low level everdrive routines. */
+char	lba_addressing;				/* Flag to indicate whether LBA addressing (SDHC) or byte addressing (SD) is active. */
 
 /* partition entry for the selected/detected partition */
-char	part_entry[16];			/* Holds the partition entry from the master boot record for the current selected partition. */
-char 	part_type;			/* The hex code for the partition type of the current selected partition - only FAT32 are allowed */
-char 	part_number;			/* The partition number (1-4) of the current selected partition. */
-char	part_lba_begin[4];		/* The starting LBA address pf the current selected partition. */
+char	part_entry[16];				/* Holds the partition entry from the master boot record for the current selected partition. */
+char 	part_type;					/* The hex code for the partition type of the current selected partition - only FAT32 are allowed */
+char 	part_number;				/* The partition number (1-4) of the current selected partition. */
+char	part_lba_begin[4];			/* The starting LBA address pf the current selected partition. */
 
 /* the volume entry for the selected partition */
 char	fs_fat_lba_begin[4];		/* The starting LBA address of the FAT table for the current filesystem. */
-char	fs_fat_sig[2];			/* The detected 0xAA55 byte signature of the current filesystem. */
+char	fs_fat_sig[2];				/* The detected 0xAA55 byte signature of the current filesystem. */
 char	fs_cluster_lba_begin[4];	/* Where the first data cluster is of the current filesystem. */
-char	fs_num_fats;			/* The number of FAT tables for the current filesystem (should always be 2). */
-int	fs_reserved_sectors;		/* The number of reserved sectors after the FAT tables and before the data clusters. */
-int	fs_sector_size;			/* The size of a single sector in this filesystem, in bytes. */
+char	fs_num_fats;				/* The number of FAT tables for the current filesystem (should always be 2). */
+int		fs_reserved_sectors;		/* The number of reserved sectors after the FAT tables and before the data clusters. */
+int		fs_sector_size;				/* The size of a single sector in this filesystem, in bytes. */
 char	fs_sectors_per_cluster;		/* Number of sectors grouped in a single cluster. */
 char	fs_sectors_per_fat[4];		/* How many sectors does each FAT table take up. */
 char	fs_root_dir_cluster[4];		/* Location of the first cluster of the root directory entry - from here you can scan for sub directories and files. */
 
-/* Total global work size == 545 bytes */
+/* Total global work size == 545 bytes including the 512 byte sector read buffer */
 
 /* status types for closed/available and  open/used file pointers */
 #define FPTR_OPEN_STATUS		0xFF	/* value set in the file pointer array when a fptr is open/in-use */
 #define FPTR_CLOSE_STATUS		0x00	/* value set in the file pointer array when a fptr is closed/free */
-#define FILE_TYPE_FILE			0x1	/* constant for find_directory_entry when looking for file entry */
-#define FILE_TYPE_DIR			0x2	/* constant for find_directory_entry when looking for dir entry */
-#define MAX_FILENAME_SIZE		12	/* old DOS 8+3 format (including '.' seperator */
+#define FILE_TYPE_FILE			0x1		/* constant for find_directory_entry when looking for file entry */
+#define FILE_TYPE_DIR			0x2		/* constant for find_directory_entry when looking for dir entry */
+#define MAX_FILENAME_SIZE		12		/* old DOS 8+3 format (including '.' seperator */
 
 /* ============================================================ */
 
@@ -224,17 +226,17 @@ char	fs_root_dir_cluster[4];		/* Location of the first cluster of the root direc
 
 /* directory entry structure */
 #define DIR_Name_os			0x00	/* In a directory entry, DIR_Name is at byte 0 */
-#define DIR_Name_sz			11	/* Old DOS 8+3 naming convention. eg MYSAVES__.TXT */
-#define DIR_Name_Ext_os			0x08	/* Just the extension of the file. eg TXT */	
-#define DIR_Name_Ext_sz			3
+#define DIR_Name_sz			11		/* Old DOS 8+3 naming convention. eg MYSAVES__.TXT */
+#define DIR_Name_Ext_os		0x08	/* Just the extension of the file. eg TXT */	
+#define DIR_Name_Ext_sz		3
 #define DIR_Attr_os			0x0B	/* Attrib byte - file status flags. */
 #define DIR_Attr_sz			1
-#define DIR_FstClusHI_os 			0x14	/* High 16bits of the starting data cluster for this file. */
-#define DIR_FstClusHI_sz 			2
-#define DIR_FstClusLO_os 			0x1A	/* Low 16bits of the starting data cluster for this file. */
-#define DIR_FstClusLO_sz 			2
-#define DIR_FileSize_os 			0x1C
-#define DIR_FileSize_sz 			4	/* Size of the file in bytes. */
+#define DIR_FstClusHI_os 	0x14	/* High 16bits of the starting data cluster for this file. */
+#define DIR_FstClusHI_sz 	2
+#define DIR_FstClusLO_os 	0x1A	/* Low 16bits of the starting data cluster for this file. */
+#define DIR_FstClusLO_sz 	2
+#define DIR_FileSize_os 	0x1C
+#define DIR_FileSize_sz 	4		/* Size of the file in bytes. */
 
 /* ============================================================= */
 
@@ -258,14 +260,14 @@ char	fs_root_dir_cluster[4];		/* Location of the first cluster of the root direc
 */
 
 /* metadata held for each open file */
-#define FILE_DIR_os	 		0x00	/* 32 bytes to hold the directory entry of the file (which includes start cluster), as described above. */
-#define FILE_DIR_sz			32
+#define FILE_DIR_os	 				0x00	/* 32 bytes to hold the directory entry of the file (which includes start cluster), as described above. */
+#define FILE_DIR_sz					32
 #define FILE_Total_Clusters_os	 	0x20 	/* 2 bytes to hold the total number of clusters the file occupies (eg 10). */
 #define FILE_Total_Clusters_sz		2
 #define FILE_Cur_Cluster_Count_os 	0x22 	/* 2 bytes to hold the count of the current cluster we're reading (eg 2 of 10). */
 #define FILE_Cur_Cluster_Count_sz	2
 #define FILE_Cur_Cluster_os 		0x24 	/* 4 bytes to hold the actual number of the cluster we're reading (eg 0x00000003). */
-#define FILE_Cur_Cluster_sz		4
+#define FILE_Cur_Cluster_sz			4
 #define FILE_Cur_Sector_Count_os 	0x28	/* 2 bytes to hold the count of the current sector in this cluster (eg 4 of 64). */
 #define FILE_Cur_Sector_Count_sz 	2
 #define FILE_Cur_Sector_LBA_os 		0x2A 	/* 4 bytes to hold the actual LBA of the sector we're reading (eg 0x00004040). */
@@ -278,37 +280,39 @@ char	fs_root_dir_cluster[4];		/* Location of the first cluster of the root direc
 /* ============================================================ */
 
 #define FILE_WORK_SIZE			52	/* 50 bytes total work ram required per file */
-#define NUM_OPEN_FILES			2 	/* Set the number of simultaneous open files here and multiply the FILE_WORK_SIZE figure 
-						to get the total bytes required for the global fwa. A minimum
-						of 2 open files are required - 1 is reserved for directory traversal leaving 1 for user files. */
+#define NUM_OPEN_FILES			2 	/* Set the number of simultaneous open files here and multiply the FILE_WORK_SIZE figure */
+									/* to get the total bytes required for the global fwa. A minimum */
+									/* of 2 open files are required - 1 is reserved for directory traversal leaving 1 for user files. */
 										
 char	file_handles[NUM_OPEN_FILES];		/* stores flags to indicate which files are open - file '0' is reserved for directory access. */
-char	fwa[104];				/* metadata for all possible open files -
-						calculated as FILE_WORK_SIZE x NUM_OPEN_FILES
-						maximum allowed size is 32768 bytes */
+char	fwa[104];							/* metadata for all possible open files -
+											calculated as FILE_WORK_SIZE x NUM_OPEN_FILES
+											maximum allowed size is 32768 bytes */
 
 /* =========================================================== */
 
 /* low level Everdrive SD interface functions - by MooZ */
-#include "sd.h"
+#include "fat/sd.h"
 
 /* emulated '32bit' integer math functions - sector calculation etc */
-#include "math32.h"
+#include "fat/math32.h"
 
 /* little-endian to big-endian conversion functions */
-#include "endian.h"
+#include "fat/endian.h"
 
 /* MBR and partition detection routines */
-#include "fat-dev.h"
+#include "fat/fat-dev.h"
 
 /* FAT volume data retrieval routines */
-#include "fat-vol.h"
+#include "fat/fat-vol.h"
 
 /* stdio-like FAT filesytem functions */
-#include "fat-files.h"
+#include "fat/fat-files.h"
 
 /* Misc helpers */
-#include "fat-misc.h"
+#include "fat/fat-misc.h"
 
-/* Additional string printing functions */
-#include "print.h"
+/* Additional string printing functions -
+DISABLE this include if you are not using any
+of the debugging code! */
+#include "fat/print.h"

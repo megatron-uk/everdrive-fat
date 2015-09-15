@@ -34,7 +34,7 @@
 * int16_to_int32() 	- Converts an unsigned two byte int to a 4byte 32bit number
 * int32_is_zero() 	- Tests if a 4byte 32bit number is zero
 * add_int32() 		- Adds two 4byte 32bit numbers - does not handle overflow
-* sub_int32() 		- NOT IMPLEMENTED!!!
+* sub_int32() 		- SUbtracts two 4byte 32bit numbers - does not handle overflow OR negatives
 * mul_int32() 		- NOT IMPLEMENTED!!!
 * mul_int32_int16()	- SLOW!!! Multiplies a 4byte 32bit number by a 16bit integer - does not handle overflow - needs refactoring
 * mul_int32_int8()	- Multiplies a 4byte 32bit number by a 8bit integer - does not handle overflow - needs refactoring
@@ -42,7 +42,7 @@
 * zero_int32()		- Initialises a 4byte packed 32bit number (sets each memory location to 0x00)
 */
 
-#include "math32-extras.h"
+#include "fat/math32-extras.h"
 
 int32_to_int16_lsb(int32)
 char*	int32;
@@ -136,15 +136,15 @@ char* 	int32_b;
 	*/
 
 	int 	sum;
-	char	add_i, pos;
+	char	i, pos;
 	char 	carry;
 		
 	/* zero_int32(int32_result); */
 		
 	carry = 0x00;
 	/* loop over each byte of the 4byte array from lsb to msb */
-	for (add_i = 1; add_i < 5; add_i++) {
-		pos = 4 - add_i; 
+	for (i = 1; i < 5; i++) {
+		pos = 4 - i; 
 		/* sum the two 1 byte numbers as a 2 byte int */
 		sum = int32_a[pos] + int32_b[pos] + carry;
 		/* would integer overflow occur with this sum? */
@@ -178,31 +178,87 @@ char* 	int32_b;
 		subtracts and stores the result.
 		
 		Returns 0 on success, 1 on error or overflow.
+		
+		TO DO - Really feels like this could be refactored to be
+		a short loop. But it does work as-is.
 	*/
 	
-	return 0;
+	char borrow;
+	char result[4];
+	int sum;
 	
+	/* If the byte 1 of the first integer is smaller than that of the second, then underflow would
+	occur _regardless_ */
+	if (int32_a[0] < int32_b[0]) {	
+		zero_int32(int32_result);
+		return 1;
+	} 	
+	
+	/* byte 4 */
+	if (int32_a[3] >= int32_b[3]){
+		result[3] = int32_a[3] - int32_b[3];
+		borrow = 0;
+	} else {
+		sum = int32_a[3] + 0x0100;
+		result[3] = sum - int32_b[3] - borrow;
+		borrow = 1;
+	}
+	
+	/* byte 3 */
+	if ((int32_a[2] - borrow) >= int32_b[2]){
+		result[2] = (int32_a[2] - int32_b[2]) - borrow;
+		borrow = 0;
+	} else {
+		sum = int32_a[2] + 0x0100;
+		result[2] = sum - int32_b[2] - borrow;
+		borrow = 1;
+	}
+	
+	/* byte 2 */
+	if ((int32_a[1] - borrow) >= int32_b[1]){
+		result[1] = int32_a[1] - int32_b[1] - borrow;
+		borrow = 0;
+	} else {
+		sum = int32_a[1] + 0x0100;
+		result[1] = sum - int32_b[1] - borrow;
+		borrow = 1;	
+	}
+	
+	/* byte 1 */
+	if ((int32_a[0] - borrow) >= int32_b[0]){
+		result[0] = int32_a[0] - int32_b[0] - borrow;
+	} else {
+		zero_int32(int32_result);
+		return 1;
+	}
+	
+	copy_int32(int32_result, result);
+	return 0;
 }
 
 mul_int32_int16(int32_result, int16)
 char*	int32_result;
-int	int16;
+int		int16;
 {
 	/* 
-		Multiply a 32bit number by a 16bit number -
+		Multiply a 32bit number by a 16bit number and stores the result
+		as 4 bytes.
+		
 		This is VERY SLOW (but works) - multiple add_int32 calls, it
 		should be refactored to use bit shifting.
 		
 		TODO: CONVERT TO SHIFT
+		
+		Returns 0 on success, 1 on error or overflow.
 	*/
 	
 	char overflow;
-	int mul_i;
+	int i;
 	char r[4];
 	memcpy(r, int32_result, 4);
 	zero_int32(int32_result);
 
-	for (mul_i = 0; mul_i < int16; mul_i++) {
+	for (i = 0; i < int16; i++) {
 		overflow = add_int32(int32_result, int32_result, r);
 		if (overflow != 0){
 			return overflow;

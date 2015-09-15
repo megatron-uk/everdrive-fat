@@ -1,10 +1,10 @@
 #!/bin/bash
 
-cd examples
+source ../settings.ini
 
 # Test reading file data
 echo ""
 echo "========================================"
 echo " Building text file reader program\n\n"
-huc -s -O2 test-textreader.c && pceas -s -l0 test-textreader.s
-cd -
+
+$CC -s -DPRINTFUNCS -DDEBUG -O2 textreader.c && $AS -s -l0 textreader.s

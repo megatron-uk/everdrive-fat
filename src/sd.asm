@@ -47,7 +47,7 @@ SD_CMD_ERASE                  = $66 ; Erase all previously selected blocks
 SD_CMD_APP_CMD                = $77 ; Escape for application specific command
 SD_CMD_READ_OCR               = $7A ; Read the OCR register of a card 
 SD_CMD_SET_WR_BLK_ERASE_COUNT = $97 ; Set the number of write blocks to be pre-erased before writing
-SD_CMD_SD_SEND_OP_COMD        = $A9 ; Sends host capacity support information and activates the card's initialization process
+SD_CMD_SD_SEND_OP_COND        = $A9 ; Sends host capacity support information and activates the card's initialization process
 SD_CMD_41_TODO                = $69 ;
 
 SD_DATA_START_BLOCK     = $FE ; Start data token for read or write single block
@@ -180,6 +180,8 @@ ed_block_cp_dst   .ds 2
 ed_block_cp_size  .ds 2
 ed_block_cp_rts   .ds 1
 
+_ed_count     .ds 1 ; sector count
+
     .code
 
 ;;---------------------------------------------------------------------
@@ -254,6 +256,29 @@ spi_send:
 
     rts
 
+;;---------------------------------------------------------------------
+; name : spi_wait_ready
+; desc : Wait until spi register equals $ff
+; in   : 
+; out  : A spi register value
+;        C flag is set if timeout occured
+;;--------------------------------------------------------------------- 
+spi_wait_ready:
+    stw    #SPI_TIMEOUT, <_ed_timeout
+.loop:
+    jsr    spi_recv
+    cmp    #$ff
+    bne    .end
+
+    decw   <_ed_timeout
+    ora    <_ed_timeout
+    bne    .loop
+.timeout:
+    rts
+.end:
+    clc
+    rts
+    
 ;;---------------------------------------------------------------------
 ; name : mmc_cmd
 ; desc : Write a byte to spi register.
@@ -535,41 +560,30 @@ disk_init:
 ;            ERR_NONE (0)   The buffer was successfully copied.
 ;;---------------------------------------------------------------------
 spi_send_to_ram:
-    clx
-    cly
-.wait_spi
-    lda    #$ff
-    sta    SPI_REG_ADDR
-    lda    SPI_REG_ADDR
-    cmp    #SD_DATA_START_BLOCK
-    beq    .begin_transfer
-    
-    dey
-    bne    .wait_spi
-    dex
-    bne    .wait_spi
-    
+    jsr    spi_wait_ready
+    bcc    .check_token
 .timeout:
     ldx    #ERR_TIMEOUT
     rts
-    
+.check_token: 
+    cmp    #SD_DATA_START_BLOCK
+    beq    .begin_transfer
+        ldx    #DISK_ERR_RD1
+        rts
+        
 .begin_transfer:
     ; Setup RAM copy instruction
     lda    #MEMCPY_SOURCE_ALT_DEST_INC
     sta    <ed_block_cp_inst
     stw    #SPI_REG_ADDR, <ed_block_cp_src
 
-    lda    SPI_REG_ADDR + REG_SPI_CFG
-    ora    #4
-    sta    SPI_REG_ADDR + REG_SPI_CFG
+    SPI_AREAD_ON
 
     lda    SPI_REG_ADDR
     jsr    ed_block_cp_inst
     lda    SPI_REG_ADDR
 
-    lda    SPI_REG_ADDR + REG_SPI_CFG
-    and    #3
-    sta    SPI_REG_ADDR + REG_SPI_CFG
+    SPI_AREAD_OFF
     
     clx    ; ERR_NONE
     rts
@@ -598,76 +612,91 @@ disk_update_address:
         rol    <_ed_addr+3
 .l0:
     rts
-   
-;;---------------------------------------------------------------------
-; name : disk_start_read_sequence
-; desc : Start multiple blocks read sequence.
-; in   : <_ed_addr 32 bytes address (byte address on standard SD)
-;                                   (sector address on SD HC)
-; out  : X DISK_ERR_RD2 if an error occured, 0 for success
-;;---------------------------------------------------------------------
-disk_start_read_sequence:
-    jsr    disk_update_address
-    ; [todo] add state?
-    
-    stw    <_ed_addr+2, <_ed_buffer+2
-    stw    <_ed_addr,   <_ed_buffer
-    lda    #SD_CMD_READ_MULTIPLE_BLOCK
-    ldx    #$01     ; dummy CRC
-    jsr    mmc_cmd
-    cpx    #$00
-    beq    .l1
-        ldx    #DISK_ERR_RD2
-        rts
-.l1:    
-    SPI_SS_ON;
-    clx
-    rts
-
-;;---------------------------------------------------------------------
-; name : disk_stop_read_sequence
-; desc : Stop multiple blocks read sequence.
-; in   : 
-; out  :
-;;---------------------------------------------------------------------
-disk_stop_read_sequence:
-    stwz   <_ed_buffer
-    stwz   <_ed_buffer+2
-    
-    ; [todo] wait
-    lda    #SD_STOP_TRANSMISSION
-    ldx    #$87     ; Dummy CRC
-    jsr    mmc_cmd
-
-    rts
 
 ;;---------------------------------------------------------------------
 ; name : disk_read_sector
-; desc : Read sector.
-; in   : <ed_block_cp_dst destination 
-; out  : X DISK_ERR_RD1 if an error occured, 0 for success
+; desc : Read sectors.
+; in   : <_ed_addr 32 bytes address (byte address on standard SD)
+;                                   (sector address on SD HC)
+;        <_ed_count sector count
+;        <ed_block_cp_dst destination
+; out  : X DISK_ERR_RD1 Read failed
+;          DISK_ERR_RD2 Open failed
 ;;---------------------------------------------------------------------
 disk_read_sector:
-    jsr    spi_send_to_ram
-    cpx    #$00
-    beq    .l0
-        ldx   #DISK_ERR_RD1
+    jsr    disk_update_address
+    
+    stw    <_ed_addr+2, <_ed_buffer+2
+    stw    <_ed_addr,   <_ed_buffer
+    lda    #SD_CMD_READ_BLOCK
+    ldx    <_ed_count
+    cpx    #2     ; The carry flag is clear if ed_count < 2
+    adc    #0     ; SD_CMD_READ_MULTIPLE_BLOCK = SD_CMD_READ_BLOCK + 1
+    ldx    #$01   ; Dummy CRC
+    jsr    mmc_cmd
+    cpx    #ERR_NONE
+    beq    .l1
+        SPI_SS_OFF
+        ldx    #DISK_ERR_RD2
         rts
-.l0:
+.l1:    
+    SPI_SS_ON
     
+    ldy    <_ed_count
+.l2:
+    phy
+    jsr    spi_send_to_ram
+    ply
+    
+    ; Copy next 512 bytes (add32 512)
+    lda    <ed_block_cp_dst+1
+    clc
+    adc    #$02
+    sta    <ed_block_cp_dst+1
+    bcc    .l4
+    inc    <ed_block_cp_dst+2
+    bne    .l4
+    inc    <ed_block_cp_dst+3
+.l4:
+
+    ; Jump to next sector (inc32)
     inc    <_ed_addr
-    bne    .l1
+    bne    .l3
     inc    <_ed_addr+1
-    bne    .l1
+    bne    .l3
     inc    <_ed_addr+2
-    bne    .l1
+    bne    .l3
     inc    <_ed_addr+3
-    bne    .l1
-.l1:
-    clx
-.end:
-    rts
+.l3:
+    cpx    #ERR_NONE
+    bne    .err
     
+    dey
+    bne    .l2
+
+    phx   ; X contains ERR_NONE
+    bra    .finish
+
+.err:
+    ldx   #DISK_ERR_RD1
+    phx
+    
+.finish:
+    ldx    <_ed_count
+    cpx    #2
+    bcc    .end
+
+    stwz   <_ed_buffer
+    stwz   <_ed_buffer+2
+    lda    #SD_STOP_TRANSMISSION
+    ldx    #$01     ; Dummy CRC
+    jsr    mmc_cmd
+
+.end:
+    SPI_SS_OFF
+    plx
+    rts
+
 ;;---------------------------------------------------------------------
 ; name : disk_read_single_sector
 ; desc : Read a single sector.
@@ -677,13 +706,13 @@ disk_read_sector:
 ; out  : X DISK_ERR_RD1 Read failed
 ;          DISK_ERR_RD2 Open failed
 ;;---------------------------------------------------------------------
-disk_read_single_sector:    
+disk_read_single_sector:
     jsr    disk_update_address
     
     stw    <_ed_addr+2, <_ed_buffer+2
     stw    <_ed_addr,   <_ed_buffer
     lda    #SD_CMD_READ_BLOCK
-    ldx    #$95
+    ldx    #$87
     jsr    mmc_cmd
     cpx    #ERR_NONE
     beq    .l1
@@ -706,53 +735,86 @@ disk_read_single_sector:
 
 ;;---------------------------------------------------------------------
 ; name : spi_write_to_card
-; desc : Write 512 bytes from ram to sd
+; desc : Write 512 bytes from ram to sd 
 ; in   : <ed_block_cp_src [todo]
+; out  : A    Token
+;;---------------------------------------------------------------------
+spi_write_to_card:  
+    ; We don't use memory copy here.
+
+    ; Send token
+    jsr    spi_send
+    
+    ; Copy first 256 bytes
+    cly
+.l0:
+    lda    [ed_block_cp_src], Y
+    jsr    spi_send
+    iny
+    bne    .l0
+
+    inc    <ed_block_cp_src+1
+    
+    ; Copy last 256 bytes
+    cly
+.l1:
+    lda    [ed_block_cp_src], Y
+    jsr    spi_send
+    iny
+    bne    .l1
+    
+    inc    <ed_block_cp_src+1
+    
+    rts
+    
+;;---------------------------------------------------------------------
+; name : spi_finalize_write
+; desc : Finalize write operation.
+;        Send CRC, read response and wait until the card is busy.
+; in   :
 ; out  : X : ERR_TIMEOUT    Failed to read SPI register after numerous try.
 ;            ERR_REG_ERROR  The SPI register value is incorrect.
 ;            ERR_NONE (0)   The buffer was successfully copied.
 ;;---------------------------------------------------------------------
-spi_write_to_card:
-    ; Setup RAM copy instruction
-    lda    #MEMCPY_SOURCE_INC_DEST_ALT ; [todo] if this fails, try MEMCPY_SOURCE_INC_DEST_NOP
-    sta    <ed_block_cp_inst
-    stw    #SPI_REG_ADDR, <ed_block_cp_dst
-
-    ; Send token
-    lda    #SD_DATA_START_BLOCK
-    sta    SPI_REG_ADDR
-    
-    ; Copy data
-    jsr    ed_block_cp_inst
-    
+spi_finalize_write:
     ; Send dummy CRC (ffff)
     lda    #$ff
-    sta    SPI_REG_ADDR
-    sta    SPI_REG_ADDR
+    jsr    spi_send
+    
+    lda    #$ff
+    jsr    spi_send
     
     ; Read response
-    lda    SPI_REG_ADDR
+    jsr    spi_recv
     and    #SD_DATA_RES_MASK
     cmp    #SD_DATA_RES_ACCEPTED
     bne    .nok
     
-    clx    ; ERR_NONE
+.busy_loop:
+    ; 8 cycles "wait"
+    lda    #$ff
+    jsr    spi_send
+    
+    jsr    spi_recv
+    cmp    #$00
+    beq    .busy_loop
+    
+    ldx    #ERR_NONE
     rts
-
 .nok:
     ldx    #ERR_REG_ERROR
     rts
     
 ;;---------------------------------------------------------------------
-; [todo] test it!
 ; name : disk_write_single_sector
 ; desc : Write a single sector.
 ; in   : <_ed_addr 32 bytes address (byte address on standard SD)
 ;                                   (sector address on SD HC)
 ;        <ed_block_cp_src destination 
-; out  : X [todo]
+; out  : X : DISK_ERR_WR1 If the write operation failed.
+;            ERR_NONE(0)  The sector was successfully written.
 ;;---------------------------------------------------------------------
-disk_write_single_sector:    
+disk_write_single_sector:
     jsr    disk_update_address
     
     stw    <_ed_addr+2, <_ed_buffer+2
@@ -762,47 +824,115 @@ disk_write_single_sector:
     jsr    mmc_cmd
     cpx    #ERR_NONE
     beq    .l1
-        ldx    #DISK_ERR_RD2 ; [todo]
+        SPI_SS_OFF
+        ldx    #DISK_ERR_WR1
         rts
 .l1:
 
     SPI_SS_ON
     
+    lda    #SD_DATA_START_BLOCK
     jsr    spi_write_to_card
+    jsr    spi_finalize_write
     
     SPI_SS_OFF
-    rts
-        
-;;---------------------------------------------------------------------
-; name : disk_start_write_sequence
-; desc : 
-; in   : (todo) block
-;        (todo) pre erase count
-;        (todo) data pointer
-; out  : (todo)
-;;---------------------------------------------------------------------
-disk_start_write_sequence:
-    ; (todo)
-    rts
+    
+    lda    #$ff
+    jsr    spi_send
 
-;;---------------------------------------------------------------------
-; name : disk_stop_write_sequence
-; desc : 
-; in   :
-; out  : (todo)
-;;---------------------------------------------------------------------
-disk_stop_write_sequence:
-    ; (todo)
+    ldx    #ERR_NONE
     rts
 
 ;;---------------------------------------------------------------------
 ; name : disk_write_sector
-; desc : (todo)
-; in   : <ed_block_cp_src
-; out  : (todo)
+; desc : Write sectors.
+; in   : <_ed_addr 32 bytes address (byte address on standard SD)
+;                                   (sector address on SD HC)
+;        <_ed_count sector count
+;        <ed_block_cp_src source data
+; out  : X DISK_ERR_WR1 Write failed
+;          DISK_ERR_WR2 Open failed
+;          DISK_ERR_WR3 Sector erase failed
 ;;---------------------------------------------------------------------
 disk_write_sector:
-    ; (todo)
-    rts
-        
+    lda    <_ed_count
+    cmp    #$02
+    bcc    disk_write_single_sector
+
+    ; Set block count
+    stwz   <_ed_buffer
+    stwz   <_ed_buffer+2
+    lda    #SD_CMD_APP_CMD
+    ldx    #$95
+    jsr    mmc_cmd
+    cpx    #$ff
+    bne    .l0
+        ldx    #DISK_ERR_WR3
+        rts
+.l0:
+
+    lda    <_ed_count
+    sta    <_ed_buffer
+    stz    <_ed_buffer+1
+    stwz   <_ed_buffer+2
+    lda    #SD_CMD_SET_BLOCK_COUNT
+    ldx    #$01   ; Dummy CRC
+    jsr    mmc_cmd
+    cpx    #ERR_NONE
+    beq    .l1
+        SPI_SS_OFF
+        ldx    #DISK_ERR_WR3
+        rts
+.l1:
     
+    jsr    disk_update_address
+    
+    stw    <_ed_addr+2, <_ed_buffer+2
+    stw    <_ed_addr,   <_ed_buffer
+    lda    #SD_CMD_WRITE_MULTIPLE_BLOCK
+    ldx    #$01     ; dummy CRC
+    jsr    mmc_cmd
+    cpx    #ERR_NONE
+    beq    .l2
+        SPI_SS_OFF
+        ldx    #DISK_ERR_WR1
+        rts
+.l2:
+    
+    SPI_SS_ON
+
+    ldy    <_ed_count
+.l3:
+    phy
+    lda    #SD_WRITE_MULTIPLE_TOKEN
+    jsr    spi_write_to_card
+    jsr    spi_finalize_write
+    ply
+    
+    cpx    #ERR_NONE
+    bne    .end
+    
+    dey
+    bne    .l3
+
+    lda    #SD_STOP_TRAN_TOKEN
+    jsr    spi_send
+
+    ; 8bit padding
+    lda    #$ff
+    jsr    spi_send
+    
+    ; Wait for write to finish
+.busy_loop:
+    ; 8 cycles "wait"
+    lda    #$ff
+    jsr    spi_send
+    
+    jsr    spi_recv
+    cmp    #$00
+    beq    .busy_loop
+    
+.end:
+    SPI_SS_OFF
+
+    rts

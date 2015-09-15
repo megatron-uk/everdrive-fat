@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd examples
+source ../settings.ini
 
 # Test file / directory access
 echo ""
@@ -8,9 +8,7 @@ echo "========================================"
 echo " Building file/dir access test program\n\n"
 
 # Build with debugging enabled
-huc -DPRINTFUNCS -DFILEDEBUG -s test-files.c && pceas -s -l0 test-files.s
+$CC -t -DPRINTFUNCS -DFILEDEBUG -s fileopen.c && $AS -s -l0 fileopen.s
 
 # Build without debugging
 #huc -s -O2 test-files.c && pceas -s -l0 test-files.s
-
-cd -

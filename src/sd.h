@@ -8,10 +8,10 @@ SD_BANK = 2
 
     .bank SD_BANK
     .org  $6000
-    .include "sd.asm"
+    .include "fat/sd.asm"
     
     ; [todo] move it to fat.h?
-    ;.include "fat.asm"
+    ;.include "fat/fat.asm"
     
     ; "Restore" bank
     .bank DATA_BANK    
@@ -92,61 +92,6 @@ disk_init()
 } 
 
 /**
- * Start multiple blocks read sequence.
- * For a standard SD card, the address is a standard byte address.
- * For a SD HC, it's the sector address.
- * Note that the address is a 32 bits word.
- * \param [in] addr_lo Least significant word.
- * \param [in] addr_hi Most significant word.
- * \return DISK_ERR_RD2 if an error occured, 0 for success
- **/
-disk_start_read_sequence(addr_lo, addr_hi)
-int addr_lo;
-int addr_hi;
-{
-#asm
-    lda    [__sp]
-    sta    <_ed_addr+2
-    ldy    #1
-    lda    [__sp],Y
-    sta    <_ed_addr+3
-    iny
-    lda    [__sp],Y
-    sta    <_ed_addr
-    iny
-    lda    [__sp],Y
-    sta    <_ed_addr+1
-    iny
-    sd_call  disk_start_read_sequence
-#endasm
-}
-   
-/**
- * Stop multiple blocks read sequence.
- **/
-disk_stop_read_sequence()
-{
-#asm
-    sd_call  disk_stop_read_sequence
-#endasm
-}
- 
-/**
- * Read sector.
- * \param [in] dest Destination pointer.
- * \return DISK_ERR_RD1 if an error occured, 0 for success
- **/
-disk_read_sector(dest)
-int *dest;
-{
-#asm
-    stx    <ed_block_cp_dst
-    sta    <ed_block_cp_dst+1
-    sd_call  disk_read_sector
-#endasm
-}
-
-/**
  * Read a single sector.
  * For a standard SD card, the address is a standard byte address.
  * For a SD HC, it's the sector address.
@@ -183,61 +128,6 @@ int *dest;
     sta    <_ed_addr+1
     iny
     sd_call  disk_read_single_sector
-#endasm
-}
-
-/**
- * Start multiple blocks write sequence.
- * For a standard SD card, the address is a standard byte address.
- * For a SD HC, it's the sector address.
- * Note that the address is a 32 bits word.
- * \param [in] addr_lo Least significant word.
- * \param [in] addr_hi Most significant word.
- * \return [todo] if an error occured, 0 for success
- **/
-disk_start_write_sequence(addr_lo, addr_hi)
-int addr_lo;
-int addr_hi;
-{
-#asm
-    lda    [__sp]
-    sta    <_ed_addr+2
-    ldy    #1
-    lda    [__sp],Y
-    sta    <_ed_addr+3
-    iny
-    lda    [__sp],Y
-    sta    <_ed_addr
-    iny
-    lda    [__sp],Y
-    sta    <_ed_addr+1
-    iny
-    sd_call  disk_start_write_sequence
-#endasm
-}
-   
-/**
- * Stop multiple blocks write sequence.
- **/
-disk_stop_write_sequence()
-{
-#asm
-    sd_call  disk_stop_write_sequence
-#endasm
-}
- 
-/**
- * Write sector.
- * \param [in] src Data source pointer.
- * \return [todo]
- **/
-disk_write_sector(dest)
-int *dest;
-{
-#asm
-    stx    <ed_block_cp_dst
-    sta    <ed_block_cp_dst+1
-    sd_call  disk_write_sector
 #endasm
 }
 

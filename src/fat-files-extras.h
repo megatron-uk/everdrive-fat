@@ -44,8 +44,8 @@ char	file_type;
 		Follows clusters if the directory entry spans more than one cluster.
 		
 		Input:
-			char*	filename	- pointer to null terminated string representing the file and path.
-			char	fptr		- the file pointer we're conducting the search for.
+			char*	filename		- pointer to null terminated string representing the file and path.
+			char	fptr			- the file pointer we're conducting the search for.
 			const char file_type	- either FILE_TYPE_FILE or FILE_TYPE_DIR.
 		
 		Output:
@@ -54,9 +54,9 @@ char	file_type;
 	*/
 	
 	char next_cluster[4];	/* temporary 32bit calculations */
-	char s;			/* loop counter of the number of sectors per cluster */
-	char d;			/* loop counter for the number of directory entries per sector */
-	char addr[4]; 		/* temporary address buffer */
+	char s;					/* loop counter of the number of sectors per cluster */
+	char d;					/* loop counter for the number of directory entries per sector */
+	char addr[4]; 			/* temporary address buffer */
 	
 	get_sector_for_cluster(addr, fwa + FILE_Cur_Cluster_os);
 
@@ -139,7 +139,7 @@ char	set;
 	
 		Input:
 			char*	dir_entry	- pointer to directory entry structure.
-			char	set		- if true, updates directory entry current sector fields.
+			char	set			- if true, updates directory entry current sector fields.
 			
 		Output:
 			0 on success and detection of an available next sector within the current cluster.
@@ -159,6 +159,10 @@ char	fptr;
 		reverts it to the state time it was used according to the file metadata 
 		in the file work area for this pointer.
 		
+		OTHERWISE, we would need a 512byte buffer for each open file pointer.
+		This slows things, as we need to re-read and restore the buffer each time
+		we do a file operation on a different file pointer.
+		
 		This should be present at the start of every fread(), fseek(), fget(), fwrite() etc. function call.
 		
 		Input:
@@ -170,12 +174,14 @@ char	fptr;
 	*/
 
 	int	addr_lo, addr_hi;
+	
 	/* Don't need to do anything, already own the buffer */
 	if (sector_buffer_current_fptr == fptr) return 0;
 	
 	sector_buffer_current_fptr = fptr;
 	
-	/* If the position in sector buffer value is not equal to the size of a sector then re-read the last sector 
+	/* If the position in sector buffer value is not equal to the size of a sector then re-read the last sector (ie rewind to where we last where!
+	TO DO !!!
 	if ((fwa[((fptr * FILE_WORK_SIZE) + FILE_Cur_PosInBuffer_os)] != SECTOR_SIZE) || (fwa[((fptr * FILE_WORK_SIZE) + FILE_Cur_PosInBuffer_os + 1)] != 0)){
 	*/
 	if (*fptr_sector_pos(fptr) < (fs_sector_size - 1)){
@@ -211,7 +217,7 @@ char	set;
 			
 		Input:
 			char*	dir_entry	- pointer to directory entry structure.
-			char	set		- if true, updates directory entry current cluster and current sector fields.
+			char	set			- if true, updates directory entry current cluster and current sector fields.
 			
 		Returns:
 			0 on success and detection of the available next cluster.
@@ -244,12 +250,14 @@ char	set;
 	div_pow_int32(fat_sector_offset, 7);
 	
 	/* Multiply the number of sectors found by the number of fat entries in one sector - eg 1 x 128 */
-	mul_int32_int8(skip_sectors, fat_sector_offset, CLUSTER_FAT_ENTRIES_PER_SECTOR);
+	mul_int32_int8(skip_sectors, fat_sector_offset, CLUSTER_FAT_ENTRIES_SECT);
 	
 	/* Subtract that number from the current cluster number - eg 255 - 128 = 127 
 	This is how many 32bit records we need to skip in the sector buffer until we get to the one we want */
 	
-	/* THIS IS NOT IMPLEMENTED!!! */
+	/* THIS IS NOT IMPLEMENTED!!!
+	TO DO !!!
+	*/
 	sub_int32(skip_records, fat_sector_offset, skip_sectors);
 	
 	/* Add the offset onto the start sector for the fat to let the hardware know what sector of the disk to read */
@@ -267,8 +275,9 @@ char	set;
 		}
 		/* if valid and if set then update cluster number */
 		if (set == 1){
-			/* update dir entry */
-			memcpy(dir_entry + FILE_Cur_Cluster_os, sector_buffer + (skip_records * CLUSTER_FAT_ENTRY_SIZE), FILE_Cur_Cluster_sz);
+			/* update dir entry 
+			memcpy(dir_entry + FILE_Cur_Cluster_os, sector_buffer + (mul_int32(skip_records * CLUSTER_FAT_ENTRY_SIZE), FILE_Cur_Cluster_sz);
+			*/
 			/* correct endian-ness */
 			swap_int32(dir_entry + FILE_Cur_Cluster_os);
 			return 0;
@@ -349,7 +358,7 @@ char	use_root;
 {
 	/*
 		Update the subdir entry / file metadata for
-		a given file0x2590 + ((15e - 2) * 8) pointer from a base address in 
+		a given file pointer from a base address in 
 		memory (usually a found directory entry).
 		
 		Input:
@@ -360,8 +369,9 @@ char	use_root;
 		Returns:
 			N/A.
 	*/
-	
-	char b; /* loop counter */
+	int		fptr_offset;
+	char 	b; /* loop counter */
+	fptr_offset = fptr * FILE_WORK_SIZE;
 	
 	/* Are we re-loading the root directory? */
 	if (use_root == 1){
@@ -377,36 +387,36 @@ char	use_root;
 		memcpy(fwa + (fptr * FILE_WORK_SIZE), base_addr, FILE_DIR_sz); 
 		
 		/* Byte swap from little to big-endian: filesize and cluster number */
-		swap_int32(fwa + (fptr * FILE_WORK_SIZE) + FILE_DIR_os + DIR_FileSize_os);
-		swap_int16(fwa + (fptr * FILE_WORK_SIZE) + FILE_DIR_os + DIR_FstClusHI_os);
-		swap_int16(fwa + (fptr * FILE_WORK_SIZE) + FILE_DIR_os + DIR_FstClusLO_os);
+		swap_int32(fwa + fptr_offset + FILE_DIR_os + DIR_FileSize_os);
+		swap_int16(fwa + fptr_offset + FILE_DIR_os + DIR_FstClusHI_os);
+		swap_int16(fwa + fptr_offset + FILE_DIR_os + DIR_FstClusLO_os);
 		
 		/* Set total number of clusters to be 0 */
 		/* TODO go off and count cluster chain */
-		fwa[((fptr * FILE_WORK_SIZE) + FILE_Total_Clusters_os)] = 0;
-		fwa[((fptr * FILE_WORK_SIZE) + FILE_Total_Clusters_os + 1)] = 0;
+		fwa[(fptr_offset + FILE_Total_Clusters_os)] = 0;
+		fwa[(fptr_offset + FILE_Total_Clusters_os + 1)] = 0;
 		
 		/* Set current cluster count to be 0 */
-		fwa[((fptr * FILE_WORK_SIZE) + FILE_Cur_Cluster_Count_os)] = 0;
-		fwa[((fptr * FILE_WORK_SIZE) + FILE_Cur_Cluster_Count_os + 1)] = 0;
+		fwa[(fptr_offset + FILE_Cur_Cluster_Count_os)] = 0;
+		fwa[(fptr_offset + FILE_Cur_Cluster_Count_os + 1)] = 0;
 		
 		/* Set current byte position in file to be 0 */
-		zero_int32(fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_PosInFile_os);
+		zero_int32(fwa + fptr_offset + FILE_Cur_PosInFile_os);
 		
 		/* Set current byte position in sector buffer to be 0 */
-		zero_int32(fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_PosInBuffer_os);
+		zero_int32(fwa + fptr_offset + FILE_Cur_PosInBuffer_os);
 		
 		/* Set current cluster number to be the starting cluster 
 		found in the directory entry fields */
-		memcpy(fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_Cluster_os, fwa + (fptr * FILE_WORK_SIZE) + FILE_DIR_os + DIR_FstClusHI_os, 2);
-		memcpy(fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_Cluster_os + 2, fwa + (fptr * FILE_WORK_SIZE) + FILE_DIR_os + DIR_FstClusLO_os, 2);
+		memcpy(fwa + fptr_offset + FILE_Cur_Cluster_os, fwa + fptr_offset + FILE_DIR_os + DIR_FstClusHI_os, 2);
+		memcpy(fwa + fptr_offset + FILE_Cur_Cluster_os + 2, fwa + fptr_offset + FILE_DIR_os + DIR_FstClusLO_os, 2);
 	
 		/* Set current sector number to be the first one in the starting cluster */
-		get_sector_for_cluster(fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_Sector_LBA_os, fwa + (fptr * FILE_WORK_SIZE) + FILE_Cur_Cluster_os);
+		get_sector_for_cluster(fwa + fptr_offset + FILE_Cur_Sector_LBA_os, fwa + fptr_offset + FILE_Cur_Cluster_os);
 		
 		/* set current sector count (of N sectors per cluster) to be 0 */
-		fwa[((fptr * FILE_WORK_SIZE) + FILE_Cur_Sector_Count_os)] = 0;
-		fwa[((fptr * FILE_WORK_SIZE) + FILE_Cur_Sector_Count_os + 1)] = 0;
+		fwa[(fptr_offset + FILE_Cur_Sector_Count_os)] = 0;
+		fwa[(fptr_offset + FILE_Cur_Sector_Count_os + 1)] = 0;
 	}
 }
 
@@ -422,6 +432,8 @@ char	fptr;
 		Output:
 			0 on success
 			Non-zero on error or no further sectors
+			
+		TO BE IMPLEMENTED!!!
 	
 	*/
 	
@@ -440,14 +452,15 @@ char	fptr;
 	
 		/* Yes, update to that cluster */
 			/* Update cluster sector pos - i.e. sector 12 of 16 -> 13 of 16 */
-			mem(fwa + ((fptr * FILE_WORK_SIZE) + FILE_Cur_Cluster_Count_os));
+		/*	memcpy(fwa + ((fptr * FILE_WORK_SIZE) + FILE_Cur_Cluster_Count_os));*/
 			/* Update sector LBA address - i.e. 00003078 -> 00003079 */
-			inc_int32(fwa + ((fptr * FILE_WORK_SIZE) + FILE_Cur_Cluster_os));
+		/*	inc_int32(fwa + ((fptr * FILE_WORK_SIZE) + FILE_Cur_Cluster_os));*/
 			/* Set sector buffer pos to zero */
-			memcpy(fwa + ((fptr * FILE_WORK_SIZE) + FILE_Cur_PosInBuffer_os), 0x0000, 2);
+		/*	memcpy(fwa + ((fptr * FILE_WORK_SIZE) + FILE_Cur_PosInBuffer_os), 0x0000, 2);*/
 		/* Update to the first sector of that cluster */
 		
 		/* No, this must be end of file */
+		return 1;
 	}
 }
 

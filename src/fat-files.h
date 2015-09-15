@@ -25,9 +25,9 @@
 * John Snowdon (John.Snowdon@newcastle.ac.uk), 2014
 */
  
-#include "fat-files-extras.h"
+#include "fat/fat-files-extras.h"
 
-#define EOF		"\0"
+#define EOF			"\0"
 #define SEEK_SET 	0
 #define SEEK_CUR	1
 #define SEEK_END 	2
@@ -60,11 +60,11 @@ char*	f_path;
 		
 		Input:
 			char*, f_path		- Pointer to a null terminated string representing the path to a file.
-							Both MS-DOS ("\") and Unix style ("/") directory access is supported - e.g.
+								Both MS-DOS ("\") and Unix style ("/") directory access is supported - e.g.
 								fopen("/homebrew/utils/data/file.txt")
 								fopen("\games\save1.dat")
-							Access is relative to the root directory of the current open FAT partition. 
-							Device names are not supported.
+								Access is relative to the root directory of the current open FAT partition. 
+								Device names are NOT supported.
 		
 		Returns: 
 			char, fptr 	- Number of the open file pointer on success.
@@ -167,15 +167,15 @@ char	fptr;
 		Close an open file pointer 
 	 
 		Input:
-			char, fptr			- Number of an open file pointer to be closed.
+			char, fptr					- Number of an open file pointer to be closed.
 		
 		Returns: 
 			0 on success
 			Non-zero error code on failure
 			
 		Use global variables:
-			char		file_handles[n]		- array of open/close file numbers.
-			char		fwa[x]		- buffer of open file metadata.
+			char	file_handles[n]		- array of open/close file numbers.
+			char	fwa[x]				- buffer of open file metadata.
 			const	FILE_WORK_SIZE		- how many bytes of buffer memory are used by a single open file.
 			const	FPTR_CLOSE_STATUS	- constant to set the fptr flag to.
 	 */
@@ -205,6 +205,7 @@ int	n_bytes;
 	/* 
 		Read a number of bytes from an open file pointer to memory.
 		Increments file pointer position by the number of bytes read.
+		This is probably one of the most complex routines.
 		
 		Input:
 			char, fptr 		- The number of an open file pointer, as returned by fopen().
@@ -222,16 +223,18 @@ int	n_bytes;
 				do we still own sector_buffer?
 					yes
 						copy remaining bytes to f_buf (eg pos 500 - 512)
-						if we read n_bytes then return size
+						if we read n_bytes then 
+							return size
 						else
-						decrement n_bytes
+							decrement n_bytes
 					no
 						set ownsership of sector buffer
 						read entire sector
 						copy bytes from old seek pos to f_buf (eg pos 500 - 512)
-						if we read n_bytes then return size
+						if we read n_bytes then 
+							return size
 						else
-						decrment n_bytes
+							decrment n_bytes
 			no
 				skip
 				
@@ -346,9 +349,12 @@ int	n_bytes;
 						
 					}
 				} else {
-					/* Cannot move to next sector - end of file */	
+					/* Cannot move to next sector - end of file
+					TO DO !!!
+					*/
 				}
-				/*everdrive_error = disk_read_single_sector(int32_to_int16_lsb(fptr_sector_num(fptr)), int32_to_int16_msb(fptr_sector_num(fptr)), sector_buffer);
+				/* TO DO !!!
+				everdrive_error = disk_read_single_sector(int32_to_int16_lsb(fptr_sector_num(fptr)), int32_to_int16_msb(fptr_sector_num(fptr)), sector_buffer);
 				if (everdrive_error != ERR_NONE){
 					return ERR_IO_ERROR;
 				}*/	
@@ -410,7 +416,7 @@ char	f_char;
 		file position pointer by 1.
 		
 		Input:
-			char, fptr 	- The number of an open file pounter, as returned by fopen().
+			char, fptr 		- The number of an open file pounter, as returned by fopen().
 			char, f_char	- 8bit data to be written to file.
 		
 		Returns: 

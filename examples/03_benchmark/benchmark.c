@@ -24,7 +24,7 @@
 */
 
 #include "huc.h"
-#include "fat.h"
+#include "fat/fat.h"
 
 init_screen(){
 	set_color_rgb(1, 7, 7, 7);
@@ -36,13 +36,15 @@ init_screen(){
 main() {	
 	
 	char	error;
-	int	c;
+	int		c;
 	char	fh;
 	char	fname[64];
 	char	t1[4], t2[4];
 	char	buf[512];
 	
 	char 	num[4], num2[4];
+	
+	char	i_res[4], i1[4], i2[4];
 	
 	fh = 0;
 	strcpy(fname, "/text/dracula.txt");
@@ -131,6 +133,7 @@ main() {
 		put_timer(t1, 0, 0, 5);
 		put_timer(t2, 0, 0, 6);
 	}
+	
 	/* disable ed */
 	ed_end();
 }

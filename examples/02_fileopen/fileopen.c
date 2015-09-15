@@ -24,7 +24,7 @@
 */
 
 #include "huc.h"
-#include "fat.h"
+#include "fat/fat.h"
 
 init_screen(){
 	/* setup fonts/screen */

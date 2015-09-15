@@ -24,7 +24,7 @@
 */
 
 #include "huc.h"
-#include "fat.h"
+#include "fat/fat.h"
 
 init_screen(){
 	set_color_rgb(1, 7, 7, 7);
