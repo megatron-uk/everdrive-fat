@@ -8,10 +8,10 @@ SD_BANK = 2
 
     .bank SD_BANK
     .org  $6000
-    .include "fat/sd.asm"
+    .include "sd.asm"
     
     ; [todo] move it to fat.h?
-    ;.include "fat/fat.asm"
+    ;.include "fat.asm"
     
     ; "Restore" bank
     .bank DATA_BANK    
